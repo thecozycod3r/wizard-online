@@ -55,7 +55,7 @@ export function newGame(players, settings) {
   const specials = SPECIALS.filter(s => settings.specials?.includes(s));
   const total = Math.min(settings.rounds || ROUNDS_FOR[n], ROUNDS_FOR[n]);
   const G = {
-    v: 1, seq: 0,
+    v: 1, seq: 0, gameId: Math.random().toString(36).slice(2, 10),
     // Table rules (fixed): bids may never add up to the cards dealt; miss = −10 − 10 per trick off.
     settings: { specials, dealerRule: true, penalty: "house", rounds: total },
     players: players.map(p => ({ id: p.id, name: p.name })),
@@ -414,7 +414,7 @@ export function autoAction(G, pid, rnd = Math.random) {
 export function viewFor(G, pid) {
   const me = idxOf(G, pid);
   return {
-    seq: G.seq, me, phase: G.phase, round: G.round, totalRounds: G.totalRounds, dealer: G.dealer, turn: G.turn,
+    seq: G.seq, gameId: G.gameId, me, phase: G.phase, round: G.round, totalRounds: G.totalRounds, dealer: G.dealer, turn: G.turn,
     settings: G.settings, indicator: G.indicator, trump: G.trump, trickNo: G.trickNo,
     players: G.players.map(p => ({ id: p.id, name: p.name, cards: G.hands[p.id]?.length || 0, bid: G.bids[p.id], won: G.won[p.id], total: G.total[p.id] })),
     hand: G.hands[pid] || [],

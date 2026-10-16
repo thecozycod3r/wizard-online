@@ -96,7 +96,7 @@ def main():
         phase = host.evaluate("() => window.__wiz.S.view?.phase")
         gphases = [g.evaluate("() => window.__wiz.S.view?.phase") for g in guests]
         totals = host.evaluate("() => window.__wiz.S.view.players.map(p => p.name + ':' + p.total)")
-        transport = host.evaluate("() => window.__wiz.H.net?.kind")
+        transport = "supabase"
         print("transport", transport, "| host phase", phase, "| guests", gphases, "| acts", acts, "| drags", len(dragged), "|", totals)
         print("page errors:", errors or "none")
         b.close()

@@ -1,6 +1,9 @@
 import * as E from "./engine.js";
-import { hostNet, joinNet, newCode, useSupabase } from "./net.js";
+import { openBus, newCode } from "./net.js";
 import { SPECIAL_CARDS } from "./specials.js";
+import { playFx, burst, welcome } from "./fx.js";
+
+const CROWN = `<svg class="crown" viewBox="0 0 30 22" aria-label="Leader"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1b0"/><stop offset=".55" stop-color="#f2c14e"/><stop offset="1" stop-color="#b7832a"/></linearGradient></defs><path d="M2 7l6.5 5L15 2l6.5 10L28 7l-2.6 12H4.6z" fill="url(#cg)" stroke="#7a5418" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.4" y="17.6" width="21.2" height="3.4" rx="1.2" fill="url(#cg)" stroke="#7a5418" stroke-width="1"/><circle cx="15" cy="2.6" r="1.8" fill="#ff5a6e"/><circle cx="2.4" cy="7" r="1.5" fill="#7fd0ff"/><circle cx="27.6" cy="7" r="1.5" fill="#7fd0ff"/></svg>`;
 
 // ---------------------------------------------------------------- utils
 const $app = document.getElementById("app");
@@ -22,153 +25,148 @@ const DEFAULT_SETTINGS = { specials: [...E.SPECIALS], dealerRule: true, penalty:
 const S = {
   mode: "landing", role: null, code: params.get("g"), me: null,
   lobby: null, view: null, online: {}, status: "", error: "",
+  fxQueue: [], seenPlays: new Set(), leader: null,
   ui: { sel: null, overlay: null, guideTab: "specials", decl: {}, witchGive: null, witchTake: null, zoom: null, lastToastSeq: -1 },
 };
-let H = null;       // host-only state
-let NET = null;     // client transport
+let H = null;       // set while THIS device runs the table: { code, epoch, n, me, players:[{id,name,token}], settings, G }
+let BUS = null;     // shared realtime channel
+let ME = null;      // { token, name } for this device at this table
+let lastState = null, lastStateAt = 0, pendingAct = null, wasSeated = false;
 let dragging = null, renderQueued = false;
+const meKey = () => "wiz-me-" + S.code, stateKey = () => "wiz-state-" + S.code;
+S.onlineSet = new Set(); S.net = true;
+const isOnline = pid => pid === S.me ? S.net : S.onlineSet.has(pid);
+const seatIdx = (st, pid) => st.players.findIndex(p => p.id === pid);
 
-// ---------------------------------------------------------------- host
-function hostSave() {
-  LS.set("wiz-host", { code: H.code, players: H.players.map(({ id, token, name }) => ({ id, token, name })), settings: H.settings, G: H.G, me: H.me });
-}
+// ---------------------------------------------------------------- table runner ("host")
+function snapshot() { return { code: H.code, epoch: H.epoch, n: H.n, hostPid: H.me, players: H.players, settings: H.settings, G: H.G }; }
+function hostSave() { LS.set(stateKey(), snapshot()); }
 
-async function hostCreate(name) {
-  const code = newCode();
-  const token = rid();
-  H = { code, players: [{ id: "p" + rid().slice(0, 6), token, name, conn: "local", online: true }], settings: structuredClone(DEFAULT_SETTINGS), G: null };
-  H.me = H.players[0].id;
-  LS.set("wiz-name", name);
-  history.replaceState(null, "", `?g=${code}`);
-  S.code = code; S.role = "host"; S.me = H.me; S.mode = "lobby";
+function hostBroadcast(bump = true) {
+  if (!H) return;
+  if (bump) H.n += 1;
+  const st = structuredClone(snapshot());
   hostSave();
-  await hostConnect();
+  BUS?.send("state", st);
+  applyState(st);
 }
 
-async function hostResume(saved) {
-  H = { ...saved, players: saved.players.map(p => ({ ...p, conn: p.id === saved.me ? "local" : null, online: p.id === saved.me })) };
-  S.role = "host"; S.me = H.me; S.mode = H.G ? "game" : "lobby";
-  await hostConnect();
-  if (H.G?.phase === "trickShow") scheduleResolve();
-}
+function lobbyState() { return S.lobby; }
 
-async function hostConnect() {
-  S.status = "Opening the table…"; hostBroadcast();
-  try {
-    H.net = await hostNet(H.code);
-    S.status = "";
-  } catch (e) {
-    S.status = ""; S.error = `Couldn't open the game for others: ${e.message || e}. Reload to try again.`;
-  }
-  H.net?.onMessage(hostHandle);
-  H.net?.onClose(conn => {
-    const p = H.players.find(p => p.conn === conn);
-    if (p) { p.online = false; p.conn = null; hostBroadcast(); }
-  });
-  hostBroadcast();
-}
-
-function hostHandle(conn, msg) {
-  if (!msg || typeof msg !== "object") return;
-  if (msg.t === "hello") {
-    const name = String(msg.name || "").trim().slice(0, 18) || "Player";
-    let p = H.players.find(p => p.token === msg.token);
-    if (!p) {
-      if (H.G) return H.net.send(conn, { t: "err", msg: "This game has already started. Ask the host to start a new one." });
-      if (H.players.length >= 6) return H.net.send(conn, { t: "err", msg: "The table is full (6 players)." });
-      p = { id: "p" + rid().slice(0, 6), token: String(msg.token).slice(0, 40), name };
-      H.players.push(p);
-    } else if (!H.G) p.name = name;
-    // Drop any older connection for the same seat.
-    p.conn = conn; p.online = true;
-    H.net.send(conn, { t: "welcome", pid: p.id });
-    hostSave(); hostBroadcast();
-    return;
-  }
-  const p = H.players.find(p => p.conn === conn);
-  if (!p) return;
-  if (msg.t === "act") hostApply(p.id, msg.a);
-  if (msg.t === "leave" && !H.G) { H.players = H.players.filter(x => x !== p); hostSave(); hostBroadcast(); }
-}
-
-function hostApply(pid, a) {
-  if (!H.G) return;
-  const hostOnly = ["resolve", "nextRound"];
-  if (hostOnly.includes(a?.type) && pid !== H.me) return;
+function hostApply(pid, a, quiet) {
+  if (!H?.G) return;
+  if (["resolve", "nextRound"].includes(a?.type) && pid !== H.me) return;
   try { E.act(H.G, pid, a); }
-  catch (e) { return hostSendErr(pid, e.message); }
-  hostSave();
+  catch (e) { if (!quiet) hostSendErr(pid, e.message); return; }
   if (H.G.phase === "trickShow") scheduleResolve();
   hostBroadcast();
 }
 
 function hostSendErr(pid, m) {
+  if (pid === H.me) return toast(m);
   const p = H.players.find(p => p.id === pid);
-  if (p?.conn === "local") toast(m); else if (p?.conn) H.net.send(p.conn, { t: "err", msg: m });
+  if (p) BUS?.send("err", { token: p.token, msg: m });
 }
 
 let resolveTimer = null;
 function scheduleResolve() {
   clearTimeout(resolveTimer);
   const seq = H.G.seq;
-  resolveTimer = setTimeout(() => { if (H.G?.phase === "trickShow" && H.G.seq === seq) hostApply(H.me, { type: "resolve" }); }, 2100);
-}
-
-function lobbyState() {
-  return { code: H.code, hostId: H.me, settings: H.settings, players: H.players.map(p => ({ id: p.id, name: p.name, online: p.online })) };
-}
-
-function hostBroadcast() {
-  const online = Object.fromEntries(H.players.map(p => [p.id, !!p.online]));
-  for (const p of H.players) {
-    const msg = H.G ? { t: "view", v: E.viewFor(H.G, p.id), online } : { t: "lobby", lobby: lobbyState() };
-    if (p.conn === "local") receive(msg);
-    else if (p.online && p.conn && H.net) H.net.send(p.conn, msg);
-  }
+  resolveTimer = setTimeout(() => { if (H?.G?.phase === "trickShow" && H.G.seq === seq) hostApply(H.me, { type: "resolve" }); }, 2100);
 }
 
 function hostStart() {
   if (H.players.length < 3) return toast("You need at least 3 players.");
   try { H.G = E.newGame(H.players, H.settings); } catch (e) { return toast(e.message); }
-  hostSave(); hostBroadcast();
+  hostBroadcast();
 }
 
-// ---------------------------------------------------------------- client
-async function clientJoin(name) {
-  const tokKey = "wiz-tok-" + S.code;
-  const token = LS.get(tokKey) || rid();
-  LS.set(tokKey, token); LS.set("wiz-name", name);
-  S.role = "client"; S.mode = "connecting"; S.error = ""; S.status = "Connecting to the host…"; render();
-  try { NET = await joinNet(S.code); }
-  catch (e) { S.mode = "join"; S.error = e.message || "Couldn't reach the game."; S.status = ""; return render(); }
-  NET.onMessage(receive);
-  NET.onStatus(s => {
-    if (s === "open") { S.status = ""; NET.send({ t: "hello", token, name }); }
-    if (s === "lost") S.status = "Connection lost. Reconnecting…";
-    if (s === "gone") S.status = "Can't reach the host. Their game tab may be closed.";
-    render();
-  });
-  NET.send({ t: "hello", token, name });
-  S.status = "";
-}
-
-function receive(msg) {
-  if (msg.t === "welcome") { S.me = msg.pid; return; }
-  if (msg.t === "err") { toast(msg.msg); if (S.mode === "connecting") { S.mode = "join"; S.error = msg.msg; render(); } return; }
-  if (msg.t === "kicked") { S.mode = "join"; S.error = "The host removed you from the table."; return render(); }
-  if (msg.t === "lobby" || msg.t === "view") preloadCards();
-  if (msg.t === "lobby") { S.lobby = msg.lobby; S.view = null; S.mode = "lobby"; }
-  if (msg.t === "view") {
-    const prev = S.view;
-    S.view = msg.v; S.online = msg.online || {}; S.mode = "game";
-    onNewView(prev, msg.v);
+function onHello(m) {
+  if (!H || !m?.token) return;
+  const name = String(m.name || "").trim().slice(0, 18) || "Player";
+  let p = H.players.find(p => p.token === m.token);
+  if (!p && !H.G) {
+    // Same name as a player who isn't connected: give them their seat back (new device / new browser).
+    p = H.players.find(x => x.name.toLowerCase() === name.toLowerCase() && !isOnline(x.id) && x.id !== H.me);
+    if (p) p.token = String(m.token).slice(0, 40);
   }
+  if (!p) {
+    if (H.G) return hostBroadcast(); // they'll see the "which player are you?" screen
+    if (H.players.length >= 6) return BUS.send("err", { token: m.token, msg: "The table is full (6 players)." });
+    p = { id: "p" + rid().slice(0, 6), token: String(m.token).slice(0, 40), name };
+    H.players.push(p);
+  } else if (!H.G) p.name = name;
+  hostBroadcast();
+}
+
+function onClaim(m) {
+  if (!H || !m?.token) return;
+  const p = H.players.find(p => p.id === m.pid);
+  if (!p) return;
+  p.token = String(m.token).slice(0, 40);
+  hostBroadcast();
+}
+
+function onAct(m) {
+  if (!H || !m?.token) return;
+  const p = H.players.find(p => p.token === m.token);
+  if (p) hostApply(p.id, m.a, m.retry);
+}
+
+// Become the device that runs the table (after the previous one went quiet).
+function takeOver(from, why) {
+  H = { ...structuredClone(from), me: S.me, epoch: from.epoch + 1 };
+  delete H.hostPid;
+  if (why) toast(why);
+  if (H.G?.phase === "trickShow") scheduleResolve();
+  hostBroadcast();
+}
+
+function stopHosting(msg) {
+  H = null; clearTimeout(resolveTimer);
+  if (msg) toast(msg);
+}
+
+// ---------------------------------------------------------------- everyone
+function onState(st) {
+  if (!st || st.code !== S.code) return;
+  if (H && st.hostPid !== H.me) {
+    // Two devices think they run the table: newer epoch wins, then the lower seat.
+    if (st.epoch > H.epoch || (st.epoch === H.epoch && seatIdx(st, st.hostPid) < seatIdx(st, H.me))) stopHosting("Back online. Another player kept the game going.");
+    else return;
+  }
+  if (lastState && st.epoch === lastState.epoch && st.n === lastState.n) { lastStateAt = Date.now(); return; } // heartbeat
+  if (lastState && !H && (st.epoch < lastState.epoch || (st.epoch === lastState.epoch && st.n < lastState.n))) return; // stale
+  applyState(st);
+}
+
+function applyState(st) {
+  lastState = st; lastStateAt = Date.now(); S.status = "";
+  LS.set(stateKey(), st);
+  const mine = st.players.find(p => p.token === ME?.token);
+  S.me = mine?.id || null;
+  if (mine) { wasSeated = true; if (ME.pid !== mine.id) { ME.pid = mine.id; LS.set(meKey(), ME); BUS?.track({ pid: mine.id }); } }
+  S.lobby = { code: st.code, hostId: st.hostPid, settings: st.settings, players: st.players.map(p => ({ id: p.id, name: p.name, online: isOnline(p.id) })) };
+  S.online = Object.fromEntries(st.players.map(p => [p.id, isOnline(p.id)]));
+  if (pendingAct && st.n > pendingAct.n) pendingAct = null;
+  preloadCards();
+  if (!mine) {
+    S.view = null;
+    if (st.G) { S.mode = "claim"; S.error = wasSeated ? "You're now playing on another device. Pick your seat to move back here." : ""; }
+    else if (wasSeated) { S.mode = "join"; S.error = "The host removed you from the table."; }
+    else S.mode = "connecting";
+    return render();
+  }
+  S.role = H ? "host" : "client";
+  if (st.G) { const prev = S.view; S.view = E.viewFor(st.G, S.me); S.mode = "game"; onNewView(prev, S.view); }
+  else { S.view = null; S.mode = "lobby"; }
   render();
 }
 
 function onNewView(prev, v) {
+  queueFx(prev, v);
   const mineNow = v.waiting.includes(S.me) && !["trickShow", "roundEnd", "gameOver"].includes(v.phase);
-  const minePrev = prev ? prev.waiting.includes(S.me) && prev.phase === v.phase && prev.seq !== undefined : false;
+  const minePrev = prev ? prev.waiting.includes(S.me) && prev.phase === v.phase : false;
   if (mineNow && !minePrev) navigator.vibrate?.([18, 40, 18]);
   document.title = mineNow ? "● Your turn · Wizard" : "Wizard Online";
   // Clear selections that no longer apply.
@@ -184,10 +182,93 @@ function onNewView(prev, v) {
   if (prev?.phase === "roundEnd" && v.phase !== "roundEnd" && S.ui.overlay === "round") S.ui.overlay = null;
 }
 
-function sendAct(a) {
-  if (S.role === "host") hostApply(H.me, a);
-  else NET?.send({ t: "act", a });
+function onErr(m) {
+  if (m?.token !== ME?.token) return;
+  toast(esc(m.msg));
+  if (S.mode === "connecting") { S.mode = "join"; S.error = m.msg; render(); }
 }
+
+async function connect() {
+  BUS = await openBus(S.code);
+  BUS.on("state", onState); BUS.on("hello", onHello); BUS.on("act", onAct); BUS.on("err", onErr);
+  BUS.on("claim", onClaim);
+  BUS.onPresence(set => {
+    S.onlineSet = set;
+    if (lastState) { S.online = Object.fromEntries(lastState.players.map(p => [p.id, isOnline(p.id)])); if (S.lobby) S.lobby.players.forEach(p => (p.online = isOnline(p.id))); render(); }
+  });
+  BUS.onStatus(okNow => {
+    S.net = okNow;
+    if (okNow && !H && ME) BUS.send("hello", { token: ME.token, name: ME.name });
+    render();
+  });
+  if (ME.pid) BUS.track({ pid: ME.pid });
+}
+
+// Create a new table on this device.
+async function hostCreate(name) {
+  S.code = newCode();
+  ME = { token: rid(), name, pid: "p" + rid().slice(0, 6) };
+  LS.set(meKey(), ME); LS.set("wiz-name", name);
+  history.replaceState(null, "", `?g=${S.code}`);
+  S.mode = "connecting"; S.status = "Opening the table…"; render();
+  try { await connect(); } catch (e) { S.mode = "landing"; S.error = e.message; return render(); }
+  H = { code: S.code, epoch: 1, n: 0, me: ME.pid, players: [{ id: ME.pid, name, token: ME.token }], settings: structuredClone(DEFAULT_SETTINGS), G: null };
+  S.status = "";
+  hostBroadcast();
+  keepAwake();
+}
+
+// Join (or rejoin) an existing table.
+async function clientJoin(name) {
+  ME = LS.get(meKey()) || { token: rid() };
+  ME.name = name; LS.set(meKey(), ME); LS.set("wiz-name", name);
+  S.mode = "connecting"; S.error = ""; S.status = "Connecting…"; render();
+  try { await connect(); } catch (e) { S.mode = "join"; S.error = e.message; S.status = ""; return render(); }
+  S.status = "Finding the table…"; render();
+  BUS.send("hello", { token: ME.token, name });
+  keepAwake();
+  // Nobody answering? If this device remembers the table and holds a seat, run it from here.
+  setTimeout(() => {
+    if (lastState || H) return;
+    const saved = LS.get(stateKey());
+    if (saved?.players?.some(p => p.token === ME.token)) {
+      applyState(saved);
+      takeOver(saved, "Nobody else was running this table, so your device has picked it up.");
+    } else { S.status = "Waiting for the table… ask a player to open the game."; render(); }
+  }, 5000);
+}
+
+function claimSeat(pid) {
+  if (H) { const p = H.players.find(p => p.id === pid); if (p) { p.token = ME.token; hostBroadcast(); } return; }
+  BUS.send("claim", { token: ME.token, pid });
+  S.status = "Taking your seat…"; render();
+}
+
+function sendAct(a) {
+  if (H) return hostApply(H.me, a);
+  BUS?.send("act", { token: ME.token, a });
+  pendingAct = { a, n: lastState?.n ?? 0, at: Date.now(), tries: 0 };
+}
+
+// Heartbeat, resend and takeover watchdog.
+setInterval(() => {
+  if (!BUS) return;
+  const now = Date.now();
+  if (H) { if (S.net) BUS.send("state", snapshot()); return; }
+  if (pendingAct && now - pendingAct.at > 2500 && pendingAct.tries < 4) {
+    pendingAct.tries += 1; pendingAct.at = now;
+    BUS.send("act", { token: ME.token, a: pendingAct.a, retry: true });
+  }
+  if (!lastState || !S.me || !S.net) return;
+  const order = lastState.players.filter(p => p.id !== lastState.hostPid && isOnline(p.id)).map(p => p.id);
+  const rank = order.indexOf(S.me);
+  if (rank < 0) return;
+  if (now - lastStateAt > 7000 + rank * 3500) {
+    const host = lastState.players.find(p => p.id === lastState.hostPid)?.name || "The host";
+    takeOver(lastState, `${esc(host)} lost connection. Your device is keeping the game going.`);
+  }
+}, 1000);
+
 
 // ---------------------------------------------------------------- toast
 let toastTimer;
@@ -207,11 +288,60 @@ function render() {
   if (S.mode === "landing") html = viewLanding();
   else if (S.mode === "join" || S.mode === "connecting") html = viewJoin();
   else if (S.mode === "lobby") html = viewLobby();
+  else if (S.mode === "claim") html = viewClaim();
   else if (S.mode === "game") html = viewGame();
   html += viewOverlay();
   $app.innerHTML = html;
   if (scroll) { const b = document.querySelector(".sheetbody"); if (b) b.scrollTop = scroll; }
   if (S.mode === "game") sizeHand();
+  if (S.fxQueue.length) requestAnimationFrame(runFx);
+}
+
+// The single top scorer; nobody when two or more share the top.
+function leaderOf(v) {
+  if (!v) return null;
+  const max = Math.max(...v.players.map(p => p.total));
+  const top = v.players.filter(p => p.total === max);
+  return top.length === 1 ? top[0].id : null;
+}
+
+function queueFx(prev, v) {
+  const q = S.fxQueue;
+  const wk = "wiz-welcome-" + v.gameId;
+  if (v.gameId && v.round === 1 && !v.scores.length && !LS.get(wk)) { LS.set(wk, 1); q.push({ welcome: true }); }
+  const plays = ["play", "declare"].includes(v.phase) ? v.trick?.plays || []
+    : ["trickShow", "juggler", "cloud", "witch"].includes(v.phase) ? v.lastTrick?.plays || [] : [];
+  const fresh = !prev || prev.gameId !== v.gameId;
+  for (const p of plays) {
+    const key = `${v.gameId}.${v.round}.${v.trickNo}.${p.pid}`;
+    if (S.seenPlays.has(key)) continue;
+    S.seenPlays.add(key);
+    if (fresh) continue; // joining or reloading mid-trick: don't replay old cards
+    const kind = E.card(p.id).kind;
+    const who = p.pid === S.me ? "You" : v.players.find(x => x.id === p.pid)?.name;
+    if (E.SPECIALS.includes(kind) && kind !== "werewolf") q.push({ kind, id: p.id, who, extra: kind === "vampire" && p.copy ? `copies ${E.cardLabel(p.copy)}` : "" });
+    else if (kind === "wizard") q.push({ burst: "wizard", id: p.id });
+  }
+  if (fresh) return;
+  if (v.phase === "trickShow" && v.trickResult?.bombed && prev.phase !== "trickShow") q.push({ burst: "boom", zone: true });
+  if (prev.phase === "juggler" && v.phase !== "juggler") q.push({ burst: "pass" });
+  if (prev.phase === "cloud" && v.phase !== "cloud") q.push({ burst: "cloudBid" });
+  if (prev.phase === "witch" && v.phase !== "witch") q.push({ burst: "swap", zone: true });
+  if (prev.phase === "werewolf" && v.phase !== "werewolf") {
+    const pid = prev.pending?.pid;
+    q.push({ kind: "werewolf", id: "sp-werewolf", who: pid === S.me ? "You" : v.players.find(x => x.id === pid)?.name, extra: v.trump ? `${E.SUIT_NAME[v.trump]} is trump` : "No trump" });
+  }
+}
+
+function runFx() {
+  const q = S.fxQueue.splice(0);
+  q.forEach((f, i) => setTimeout(() => {
+    if (f.welcome) return welcome();
+    const at = f.id ? document.querySelector(`.tcard[data-id="${f.id}"]`) : f.zone ? document.getElementById("zone") : null;
+    const rect = at?.getBoundingClientRect() || null;
+    if (f.kind) playFx(f.kind, f.id, rect, f.who, f.extra);
+    else burst(f.burst, rect);
+  }, i * 380));
 }
 
 const guideBtn = (cls = "ghost small") => `<button class="btn ${cls}" data-act="guide">Guide</button>`;
@@ -253,10 +383,23 @@ function viewJoin() {
   </div>`;
 }
 
+function viewClaim() {
+  const L = S.lobby;
+  const seats = (L?.players || []).map((p, i) => `<li><span class="av" style="background:${SEAT_COLORS[i]}">${esc(p.name[0]?.toUpperCase())}</span>
+      <span style="flex:1">${esc(p.name)} <span class="muted" style="font-size:14px">${p.online ? "· playing now" : "· away"}</span></span>
+      <button class="btn small" data-act="claim" data-pid="${p.id}">This is me</button></li>`).join("");
+  return `<div class="page">
+    <div class="hero" style="gap:6px"><div class="eyebrow">Game in progress</div><h1 class="title" style="font-size:44px">Rejoin</h1></div>
+    <section class="panel"><div class="eyebrow">Which player are you?</div><ul class="plist">${seats}</ul>
+      <p class="muted" style="margin:0;font-size:15px">Your cards, bid and score come with you. If that seat is open on another device, it moves here.</p>
+      <div class="err">${esc(S.error || S.status)}</div></section>
+    <div class="row" style="justify-content:center">${guideBtn()}</div></div>`;
+}
+
 function viewLobby() {
-  const L = S.role === "host" ? lobbyState() : S.lobby;
+  const L = S.lobby;
   if (!L) return `<div class="page"><p class="muted">Loading…</p></div>`;
-  const isHost = S.role === "host";
+  const isHost = !!H;
   const link = linkFor(L.code);
   const st = L.settings;
   const maxR = E.ROUNDS_FOR[Math.max(3, Math.min(6, L.players.length))];
@@ -274,7 +417,7 @@ function viewLobby() {
       <div class="eyebrow">Invite players</div>
       <div class="share"><code id="link">${esc(link)}</code>
         <button class="btn small" data-act="share">Share link</button><button class="btn ghost small" data-act="copy">Copy</button></div>
-      <p class="muted" style="margin:0;font-size:15px">Anyone with the link enters their name and joins. 3–6 players.${S.role === "host" && !useSupabase() ? " Keep this tab open while you play: your browser is the table." : ""}</p>
+      <p class="muted" style="margin:0;font-size:15px">Anyone with the link enters their name and joins. 3–6 players. If someone drops out, the game keeps going and they can rejoin from any device.</p>
     </section>
     <section class="panel">
       <div class="eyebrow">Players · ${L.players.length}/6</div>
@@ -328,11 +471,14 @@ function viewGame() {
   const v = S.view, me = S.me;
   const myTurnPlay = v.phase === "play" && v.waiting.includes(me);
   const order = v.players.map((_, i) => v.players[(v.me + 1 + i) % v.players.length]);
+  const lead = leaderOf(v);
+  const crownPop = lead && lead !== S.leader;
+  S.leader = lead;
   const opps = order.map(p => {
     const i = seatOf(p.id);
     const turn = v.waiting.includes(p.id);
     const off = S.online[p.id] === false;
-    return `<div class="opp ${turn ? "turn" : ""} ${p.id === me ? "me" : ""}">
+    return `<div class="opp ${turn ? "turn" : ""} ${p.id === me ? "me" : ""} ${p.id === lead ? "lead" : ""}">${p.id === lead ? CROWN.replace('class="crown"', `class="crown${crownPop ? " pop" : ""}"`) : ""}
       <div class="nm"><span class="av" style="background:${SEAT_COLORS[i]}">${esc(p.name[0]?.toUpperCase())}</span><span class="pn">${p.id === me ? "You" : esc(p.name)}</span>
         ${i === v.dealer ? `<span class="badge" title="Dealer">D</span>` : ""}${off ? `<span class="badge off">OFF</span>` : ""}</div>
       <div class="st"><span class="bw" title="Tricks won / bid">${p.won}<span class="muted">/${p.bid ?? "–"}</span></span><b class="sc" title="Score">${p.total}</b></div></div>`;
@@ -341,7 +487,7 @@ function viewGame() {
   const trumpChip = `<span class="rnd tr"><small>TRUMP</small><span style="color:${v.trump ? SUIT_HEX[v.trump] : "var(--ink-dim)"}">${v.trump ? E.SUIT_NAME[v.trump] : ["werewolf", "trump"].includes(v.phase) ? "…" : "None"}</span></span>`;
   const bar = `<div class="bar"><div class="info"><span class="rnd"><small>ROUND</small>${v.round}/${v.totalRounds}</span>
       <span class="trumpbox">${v.indicator ? `<button class="chipbtn" style="padding:0;border:0" data-act="zoom" data-id="${v.indicator}" aria-label="Trump card">${img(v.indicator)}</button>` : ""}${trumpChip}</span></div>
-      <button class="btn ghost small" data-act="scores">Scores</button>${guideBtn("small")}</div>`;
+      ${S.net ? "" : `<span class="badge off" style="font-size:10px;padding:4px 7px">OFFLINE</span>`}<button class="btn ghost small" data-act="scores">Scores</button>${guideBtn("small")}</div>`;
 
   // Centre: current or just-finished trick.
   let plays = [], winner = null, showing = false;
@@ -537,7 +683,8 @@ const roundFoot = () => `<div class="row" style="justify-content:center;padding:
 
 function podium() {
   const ps = S.view.players.slice().sort((a, b) => b.total - a.total);
-  return `<div class="podium">${ps.map((p, i) => `<div class="p"><span class="av" style="background:${SEAT_COLORS[seatOf(p.id)]}">${i + 1}</span><span>${p.id === S.me ? "You" : esc(p.name)}</span><span class="pts">${p.total}</span></div>`).join("")}</div><div style="height:14px"></div>`;
+  const lead = leaderOf(S.view);
+  return `<div class="podium">${ps.map((p, i) => `<div class="p"><span class="av" style="background:${SEAT_COLORS[seatOf(p.id)]}">${i + 1}</span><span>${p.id === S.me ? "You" : esc(p.name)}</span>${p.id === lead ? CROWN : ""}<span class="pts">${p.total}</span></div>`).join("")}</div><div style="height:14px"></div>`;
 }
 const overFoot = () => `<div class="row" style="justify-content:center;padding:6px 16px 16px">${S.role === "host" ? `<button class="btn" data-act="again">Play again</button>` : `<span class="muted">The host can start a new game.</span>`}</div>`;
 
@@ -680,10 +827,10 @@ $app.addEventListener("click", e => {
     case "penalty": H.settings.penalty = el.dataset.v; hostSave(); hostBroadcast(); return;
     case "kick": {
       const p = H.players.find(p => p.id === el.dataset.pid);
-      if (p?.conn && p.conn !== "local") H.net?.send(p.conn, { t: "kicked" });
       H.players = H.players.filter(x => x !== p); hostSave(); hostBroadcast(); return;
     }
     case "start": hostStart(); return;
+    case "claim": claimSeat(el.dataset.pid); return;
     case "bid": sendAct({ type: "bid", n: +el.dataset.n }); return;
     case "werewolf": sendAct({ type: "werewolf", suit: el.dataset.suit || null }); return;
     case "trump": sendAct({ type: "trump", suit: el.dataset.suit }); return;
@@ -752,15 +899,13 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 // ---------------------------------------------------------------- boot
 (async function boot() {
-  const saved = LS.get("wiz-host");
-  if (S.code && saved?.code === S.code) { await hostResume(saved); keepAwake(); return render(); }
   if (S.code) {
-    const name = LS.get("wiz-name");
-    if (LS.get("wiz-tok-" + S.code) && name) { keepAwake(); return clientJoin(name); }
+    const me = LS.get(meKey());
+    if (me?.name) return clientJoin(me.name);
     S.mode = "join"; return render();
   }
   render();
 })();
 
 // Debug hook for automated tests.
-window.__wiz = { S, get H() { return H; }, act: a => sendAct(a), refresh: () => hostBroadcast() };
+window.__wiz = { S, get H() { return H; }, act: a => sendAct(a), refresh: () => hostBroadcast(), fx: { playFx, burst, welcome } };
