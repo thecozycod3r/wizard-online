@@ -8,8 +8,14 @@
 <meta name="description" content="Play Wizard (30th-anniversary rules, all 9 special cards) with friends: start a game, send the link, play.">
 <meta property="og:title" content="Wizard Online — join my game">
 <meta property="og:description" content="Tap the link, enter your name, play Wizard with all nine special cards.">
-<meta property="og:image" content="cards/blue-wizard@2x.webp">
-<link rel="icon" href="cards/sp-dragon.webp">
+<meta property="og:image" content="og.jpg">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wizard">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cinzel+Decorative:wght@700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap">
 <style>
@@ -21,7 +27,12 @@
   --cw:84px; color-scheme:dark;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+img{-webkit-touch-callout:none;-webkit-user-drag:none}
+button,a,.chipbtn,.tcard{touch-action:manipulation}
 html,body{height:100%}
+body{height:100dvh;overflow:hidden}
+.page{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#app{height:100%}
 body{margin:0;background:radial-gradient(1000px 700px at 50% 35%,#18215a 0%,var(--night) 70%) fixed,var(--night);color:var(--ink);
   font-family:var(--body);font-size:17px;line-height:1.45;overscroll-behavior:none;
   padding:env(safe-area-inset-top,0) max(12px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0) max(12px,env(safe-area-inset-left,0px))}
@@ -73,7 +84,7 @@ h1,h2,h3{margin:0}
 #app{height:100%}
 #table{height:100%;display:flex;flex-direction:column;max-width:1100px;margin:0 auto}
 .bar{display:flex;align-items:center;gap:10px;padding-block:10px 6px}
-.bar .info{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
+.bar .info{flex:1;min-width:0;display:flex;align-items:center;gap:12px;overflow:hidden}
 .rnd{font-family:var(--caps);font-weight:900;font-size:17px;line-height:1;white-space:nowrap;display:flex;flex-direction:column;font-variant-numeric:tabular-nums}
 .rnd small{font-size:9px;letter-spacing:.2em;color:var(--gold-dim);font-weight:700}
 .trumpbox{display:flex;align-items:center;gap:8px;min-width:0}
@@ -85,7 +96,12 @@ h1,h2,h3{margin:0}
 .opp.me{background:rgba(227,195,117,.08)}
 .opp .nm{display:flex;align-items:center;gap:6px;font-family:var(--caps);font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .opp .av{width:22px;height:22px;font-size:11px}
-.opp .st{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+.opp .st{display:flex;justify-content:space-between;align-items:baseline;font-variant-numeric:tabular-nums}
+.opp .bw{font-family:var(--caps);font-weight:900;font-size:17px}
+.opp .bw .muted{font-size:13px;font-weight:700}
+.opp .sc{font-family:var(--caps);font-size:14px}
+.opp .pn{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rnd.tr span{font-size:15px}
 .opp .st b{color:var(--ink)}
 .badge{font-family:var(--caps);font-size:9px;font-weight:900;letter-spacing:.1em;padding:1px 5px;border-radius:4px;background:var(--gold);color:#1b1505}
 .badge.off{background:#555;color:#ddd}
@@ -108,13 +124,15 @@ h1,h2,h3{margin:0}
   max-width:560px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.5)}
 .prompt p{margin:0}
 .btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.bidbtn{min-width:46px}
+.bidbtn{min-width:48px;min-height:46px;font-size:17px}
+.prompt .btn.small{min-height:44px}
 .suitbtn{color:#0b0b14!important;box-shadow:none}
 .hand{position:relative;padding-block:8px 14px;display:flex;flex-direction:column;align-items:center;gap:0;touch-action:none;user-select:none;-webkit-user-select:none}
 .hrow{display:flex;justify-content:center}
 .hrow+.hrow{margin-top:calc(var(--cw) * -0.9)}
 .hcard{width:var(--cw);margin-left:calc(var(--cw) * var(--ov,-.42));transition:transform .15s ease,filter .15s;cursor:grab;position:relative;touch-action:none}
 .hrow .hcard:first-child{margin-left:0}
+.hcard img,.tcard img{aspect-ratio:63/88;background:linear-gradient(160deg,#1c2560,#0c1230);object-fit:cover}
 .hcard img{width:100%;display:block;border-radius:7px;box-shadow:0 6px 14px rgba(0,0,0,.6);pointer-events:none;-webkit-user-drag:none}
 .hcard.dim{filter:brightness(.42) saturate(.6);cursor:not-allowed}
 .hcard.sel{transform:translateY(-18px)}
@@ -123,6 +141,9 @@ h1,h2,h3{margin:0}
 .dragghost{position:fixed;left:0;top:0;width:var(--cw);pointer-events:none;z-index:50;transform-origin:center;filter:drop-shadow(0 16px 24px rgba(0,0,0,.6))}
 .dragghost img{width:100%;border-radius:7px}
 .handbar{display:flex;gap:8px;justify-content:center;align-items:center;min-height:38px}
+.peek{position:fixed;inset:0;z-index:65;display:grid;place-items:center;background:rgba(0,0,0,.6);pointer-events:none;animation:fade .12s}
+.peek img{width:min(300px,72vw);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.8)}
+@keyframes fade{from{opacity:0}to{opacity:1}}
 .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 70px);transform:translateX(-50%);z-index:60;background:#1d2654;border:1px solid var(--gold);
   border-radius:12px;padding:10px 16px;font-family:var(--caps);font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:90vw;text-align:center}
 
@@ -165,6 +186,19 @@ td:first-child,th:first-child{text-align:left}
 .podium .pts{margin-left:auto;font-family:var(--caps);font-weight:900;font-size:18px}
 .logbox{font-size:14px;color:var(--ink-dim);display:flex;flex-direction:column;gap:3px}
 @media (min-width:760px){ :root{--tw:100px} .center{min-height:260px} }
+@media (max-height:720px){ .center{min-height:120px;gap:6px} .trickzone{min-height:120px;padding:8px} :root{--tw:66px} .opp{padding:5px 7px} }
+@media (orientation:landscape) and (max-height:500px){
+  #table{display:grid;grid-template-columns:minmax(150px,26%) 1fr;grid-template-rows:auto 1fr auto auto;column-gap:12px}
+  .bar{grid-column:1/-1;padding-block:4px}
+  .opps{grid-column:1;grid-row:2/5;flex-direction:column;overflow-y:auto;overflow-x:hidden;padding-block:0}
+  .opp{flex:0 0 auto;max-width:none}
+  .center{grid-column:2;grid-row:2;min-height:0}
+  .trickzone{min-height:90px} :root{--tw:58px}
+  .handbar{grid-column:2;grid-row:3;min-height:30px}
+  .hand{grid-column:2;grid-row:4;padding-block:2px 6px}
+  .prompt{padding:8px 10px;gap:6px}
+}
+@media (max-width:400px){ .opps{gap:5px} .opp{min-width:72px;padding:5px 6px} .opp .av{width:18px;height:18px;font-size:10px} .opp .nm{font-size:12px;gap:4px} .bar{gap:6px} .bar .info{gap:7px} .rnd.tr span{font-size:13px} .trumpbox img{width:28px} .bar .btn.small{padding:7px 9px;letter-spacing:.04em} }
 @media (max-width:380px){ .bar .btn.small{padding:7px 9px} .suitchip{font-size:10px;padding:3px 6px} }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>

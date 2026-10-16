@@ -156,6 +156,7 @@ function receive(msg) {
   if (msg.t === "welcome") { S.me = msg.pid; return; }
   if (msg.t === "err") { toast(msg.msg); if (S.mode === "connecting") { S.mode = "join"; S.error = msg.msg; render(); } return; }
   if (msg.t === "kicked") { S.mode = "join"; S.error = "The host removed you from the table."; return render(); }
+  if (msg.t === "lobby" || msg.t === "view") preloadCards();
   if (msg.t === "lobby") { S.lobby = msg.lobby; S.view = null; S.mode = "lobby"; }
   if (msg.t === "view") {
     const prev = S.view;
@@ -166,6 +167,10 @@ function receive(msg) {
 }
 
 function onNewView(prev, v) {
+  const mineNow = v.waiting.includes(S.me) && !["trickShow", "roundEnd", "gameOver"].includes(v.phase);
+  const minePrev = prev ? prev.waiting.includes(S.me) && prev.phase === v.phase && prev.seq !== undefined : false;
+  if (mineNow && !minePrev) navigator.vibrate?.([18, 40, 18]);
+  document.title = mineNow ? "● Your turn · Wizard" : "Wizard Online";
   // Clear selections that no longer apply.
   if (!v.hand.includes(S.ui.sel)) S.ui.sel = null;
   if (!prev || prev.phase !== v.phase) { S.ui.decl = {}; S.ui.witchGive = null; S.ui.witchTake = null; }
@@ -279,10 +284,9 @@ function viewLobby() {
     <section class="panel settings">
       <div class="eyebrow">Special cards in this game</div>
       <div class="spgrid">${spChips}</div>
-      <div class="toggle"><span>Dealer can't make bids add up</span>
-        <span class="seg">${["on", "off"].map(v => `<button aria-pressed="${(v === "on") === st.dealerRule}" ${isHost ? `data-act="dealer" data-v="${v}"` : "disabled"}>${v === "on" ? "On" : "Off"}</button>`).join("")}</span></div>
-      <div class="toggle"><span>Missed bid</span>
-        <span class="seg">${[["house", "−10 + −10/trick"], ["official", "−10/trick"]].map(([v, l]) => `<button aria-pressed="${st.penalty === v}" ${isHost ? `data-act="penalty" data-v="${v}"` : "disabled"}>${l}</button>`).join("")}</span></div>
+      <div class="eyebrow" style="margin-top:4px">Table rules</div>
+      <ul style="margin:0;padding-left:20px;font-size:16px"><li>Total bids can never equal the number of cards dealt (the dealer, bidding last, is blocked from that number).</li>
+        <li>Exact bid: +20, plus +10 per trick bid. Missed: −10, plus −10 per trick you were off.</li></ul>
       <div class="toggle"><label for="rounds">Rounds</label>
         <select id="rounds" ${isHost ? "" : "disabled"} style="font:inherit;background:var(--felt);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px">
           <option value="0" ${!st.rounds ? "selected" : ""}>Full game (${maxR})</option>
@@ -329,14 +333,12 @@ function viewGame() {
     const turn = v.waiting.includes(p.id);
     const off = S.online[p.id] === false;
     return `<div class="opp ${turn ? "turn" : ""} ${p.id === me ? "me" : ""}">
-      <div class="nm"><span class="av" style="background:${SEAT_COLORS[i]}">${esc(p.name[0]?.toUpperCase())}</span><span style="overflow:hidden;text-overflow:ellipsis">${p.id === me ? "You" : esc(p.name)}</span>
+      <div class="nm"><span class="av" style="background:${SEAT_COLORS[i]}">${esc(p.name[0]?.toUpperCase())}</span><span class="pn">${p.id === me ? "You" : esc(p.name)}</span>
         ${i === v.dealer ? `<span class="badge" title="Dealer">D</span>` : ""}${off ? `<span class="badge off">OFF</span>` : ""}</div>
-      <div class="st"><span>Bid <b>${p.bid ?? "–"}</b></span><span>Won <b>${p.won}</b></span><span>🂠 ${p.cards}</span></div>
-      <div class="st"><span>Score</span><b>${p.total}</b></div></div>`;
+      <div class="st"><span class="bw" title="Tricks won / bid">${p.won}<span class="muted">/${p.bid ?? "–"}</span></span><b class="sc" title="Score">${p.total}</b></div></div>`;
   }).join("");
 
-  const trumpChip = v.trump ? `<span class="suitchip" style="background:${SUIT_HEX[v.trump]}">${E.SUIT_NAME[v.trump]} trump</span>`
-    : (["werewolf", "trump"].includes(v.phase) ? `<span class="suitchip" style="background:#888">Choosing…</span>` : `<span class="suitchip" style="background:#aaa">No trump</span>`);
+  const trumpChip = `<span class="rnd tr"><small>TRUMP</small><span style="color:${v.trump ? SUIT_HEX[v.trump] : "var(--ink-dim)"}">${v.trump ? E.SUIT_NAME[v.trump] : ["werewolf", "trump"].includes(v.phase) ? "…" : "None"}</span></span>`;
   const bar = `<div class="bar"><div class="info"><span class="rnd"><small>ROUND</small>${v.round}/${v.totalRounds}</span>
       <span class="trumpbox">${v.indicator ? `<button class="chipbtn" style="padding:0;border:0" data-act="zoom" data-id="${v.indicator}" aria-label="Trump card">${img(v.indicator)}</button>` : ""}${trumpChip}</span></div>
       <button class="btn ghost small" data-act="scores">Scores</button>${guideBtn("small")}</div>`;
@@ -350,7 +352,7 @@ function viewGame() {
   const witchMine = v.phase === "witch" && v.pending?.pid === me;
   const tcards = plays.map(p => {
     const sel = witchMine && p.id !== "sp-witch";
-    return `<div class="tcard ${winner === p.pid && showing ? "win" : ""} ${sel ? "selectable" : ""} ${S.ui.witchTake === p.id ? "pick" : ""}" data-id="${p.id}" ${sel ? `data-act="witchtake"` : ""}>
+    return `<div class="tcard ${winner === p.pid && showing ? "win" : ""} ${sel ? "selectable" : ""} ${S.ui.witchTake === p.id ? "pick" : ""}" data-id="${p.id}" data-act="${sel ? "witchtake" : "zoom"}">
       ${img(p.id)}<span class="who" style="color:${SEAT_COLORS[seatOf(p.pid)]}">${p.pid === me ? "You" : esc(nameOf(p.pid))}</span>${declText(p) ? `<span class="decl">${esc(declText(p))}</span>` : ""}</div>`;
   }).join("");
   let zoneInner = tcards;
@@ -430,7 +432,7 @@ function promptHtml() {
       const opts = Array.from({ length: v.round + 1 }, (_, n) => n);
       return `<div class="prompt"><p>How many tricks will you win?</p><div class="btns">${opts.map(n =>
         `<button class="btn small bidbtn" data-act="bid" data-n="${n}" ${v.dealerBlocked === n ? "disabled title='Dealer rule'" : ""}>${n}</button>`).join("")}</div>
-        ${v.dealerBlocked !== null ? `<p class="muted" style="font-size:14px">As dealer you can't bid ${v.dealerBlocked}: the bids would add up to ${v.round}.</p>` : ""}</div>`;
+        ${v.dealerBlocked !== null ? `<p class="muted" style="font-size:14px">You can't bid ${v.dealerBlocked}: total bids can never equal ${v.round}.</p>` : ""}</div>`;
     }
     case "declare": {
       const needs = v.pending.needs, d = S.ui.decl;
@@ -496,19 +498,19 @@ function guideBody() {
     <h3>Goal</h3><p>Predict exactly how many tricks you'll win each round. Round 1 has 1 card each, round 2 has 2, and so on.</p>
     <h3>Each round</h3><ol>
       <li><b>Deal & trump.</b> The top card of the rest of the deck sets trump. A Wizard (or Dragon, Shapeshifter, Juggler, Cloud, Vampire) means the dealer picks trump. A Jester (or Fairy, Bomb, Witch) means no trump.</li>
-      <li><b>Bid.</b> Starting left of the dealer, everyone says how many tricks they'll take.${st.dealerRule ? " The dealer bids last and can't make the bids add up to the number of cards." : ""}</li>
+      <li><b>Bid.</b> Starting left of the dealer, everyone says how many tricks they'll take. The total of all bids can never equal the number of cards dealt, so the dealer (bidding last) can't pick the number that would make it equal.</li>
       <li><b>Play.</b> The first bidder leads. Follow the led suit if you can; if you can't, play anything. Wizards, Jesters and special cards can always be played.</li>
       <li><b>Win the trick:</b> first Wizard, else highest trump, else highest card of the led suit. The winner leads next.</li></ol>
     <h3>Leading a Wizard or Jester</h3><p>Lead a Wizard (or the Dragon) and everyone may play anything. Lead a Jester and the first number card played sets the suit to follow.</p>
-    <h3>On this table</h3><ul><li>Drag a card from your hand onto the table, or tap it twice.</li><li>Dimmed cards can't be played because you must follow suit.</li><li>The gold-outlined player is the one everyone is waiting on.</li></ul></div>`;
+    <h3>On this table</h3><ul><li>Drag a card from your hand onto the table, or tap it twice.</li><li>Dimmed cards can't be played because you must follow suit.</li><li>The gold-outlined player is the one everyone is waiting on.</li><li>Each player shows tricks won / bid (e.g. <b>1</b>/2) and their score.</li><li>Press and hold any card in your hand to see it full size; tap a card on the table to enlarge it.</li></ul></div>`;
   if (S.ui.guideTab === "order") return `<div class="guide"><h3>Highest to lowest</h3><ol class="order">
     <li>Dragon (loses only to the Fairy)</li><li>Wizard: the first one played wins (Shapeshifter played as Wizard counts)</li>
     <li>Trump 13 → 1 (Cloud 9¾ and Juggler 7½ slot in when their named suit is trump)</li><li>Led suit 13 → 1</li>
     <li>Other suits: can't win</li><li>Jester (the first one wins a trick of only Jesters)</li><li>Fairy (but beats the Dragon)</li><li>Witch</li></ol>
     <p class="muted">Bomb: nobody wins the trick. Vampire: becomes a copy of the trump card.</p></div>`;
   return `<div class="guide"><h3>After each round</h3><ul>
-    <li><b>Exact bid:</b> 20 points + 10 per trick won.</li>
-    <li><b>Missed:</b> ${st.penalty === "house" ? "−10, plus −10 for each trick you were over or under (house rule)." : "−10 for each trick you were over or under."}</li></ul>
+    <li><b>Exact bid:</b> +20, plus +10 for each trick you bid. Bid 3 and win 3: +50. Bid 0 and win 0: +20.</li>
+    <li><b>Missed:</b> −10, plus −10 for each trick you were off. Bid 2 and win 0: −30. Bid 1 and win 2: −20.</li></ul>
     <h3>Rounds</h3><p>3 players: 20 · 4: 15 · 5: 12 · 6: 10 (or fewer if the host chose a short game). Highest total wins.</p></div>`;
 }
 
@@ -548,7 +550,8 @@ function sizeHand() {
   if (!n) return;
   const W = hand.clientWidth - 8;
   const desk = window.innerWidth >= 760;
-  const max = desk ? 118 : 92, min = desk ? 80 : 62;
+  const short = window.innerHeight < 500;
+  const max = Math.min(desk ? 118 : 96, window.innerHeight * (short ? 0.17 : 0.13)), min = Math.min(desk ? 80 : 60, max);
   // Fewest rows (max 3) whose cards stay at least `min` wide with 58% of each card visible.
   let rows = 1, per = n, cw = max;
   for (rows = 1; rows <= 3; rows++) {
@@ -571,15 +574,26 @@ window.addEventListener("resize", () => S.mode === "game" && render());
 
 // ---------------------------------------------------------------- drag & drop
 $app.addEventListener("pointerdown", e => {
-  const el = e.target.closest(".hcard[data-drag]");
+  const el = e.target.closest(".hcard");
   if (!el || e.button > 0) return;
-  dragging = { id: el.dataset.id, el, x0: e.clientX, y0: e.clientY, moved: false, ghost: null };
+  const d = dragging = { id: el.dataset.id, el, x0: e.clientX, y0: e.clientY, moved: false, ghost: null, canDrag: !!el.dataset.drag, peek: null };
   el.setPointerCapture?.(e.pointerId);
+  // Press and hold to see the card full size.
+  d.lp = setTimeout(() => {
+    if (dragging !== d || d.moved) return;
+    d.peek = document.createElement("div"); d.peek.className = "peek";
+    d.peek.innerHTML = `<img src="cards/${d.id}@2x.webp" alt="">`;
+    document.body.append(d.peek);
+    navigator.vibrate?.(12);
+  }, 420);
 });
 $app.addEventListener("pointermove", e => {
   const d = dragging; if (!d) return;
+  if (d.peek) return;
   if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 8) return;
+  if (!d.canDrag) { clearTimeout(d.lp); return; }
   if (!d.moved) {
+    clearTimeout(d.lp);
     d.moved = true;
     const r = d.el.getBoundingClientRect();
     d.w = r.width; d.h = r.height;
@@ -597,11 +611,13 @@ $app.addEventListener("pointermove", e => {
 function endDrag(e, cancel) {
   const d = dragging; if (!d) return;
   dragging = null;
+  clearTimeout(d.lp);
+  if (d.peek) { d.peek.remove(); if (renderQueued) { renderQueued = false; render(); } return; }
   d.ghost?.remove(); d.el.style.opacity = "";
   document.getElementById("zone")?.classList.remove("hot");
   if (!cancel) {
     if (d.moved) { const t = dropTarget(e.clientX, e.clientY); if (t) drop(d.id, t); }
-    else tapCard(d.id);
+    else if (d.canDrag) tapCard(d.id);
   }
   if (renderQueued || d.moved) { renderQueued = false; render(); }
 }
@@ -716,6 +732,17 @@ async function copyLink() {
   const url = linkFor(S.code);
   try { await navigator.clipboard.writeText(url); toast("Link copied"); }
   catch { const r = document.createRange(); const c = document.getElementById("link"); if (c) { r.selectNodeContents(c); getSelection().removeAllRanges(); getSelection().addRange(r); } toast("Select the link and copy it"); }
+}
+
+// Fetch every card image once, so hands never show blank gaps on slow phone connections.
+let preloaded = false;
+function preloadCards() {
+  if (preloaded) return; preloaded = true;
+  const hi = (window.devicePixelRatio || 1) > 1 ? "@2x" : "";
+  const ids = [];
+  for (const s of E.SUITS) { for (let r = 1; r <= 13; r++) ids.push(`${s}-${String(r).padStart(2, "0")}`); ids.push(`${s}-wizard`, `${s}-jester`); }
+  E.SPECIALS.forEach(k => ids.push("sp-" + k));
+  ids.forEach((id, i) => setTimeout(() => { const im = new Image(); im.src = `cards/${id}${hi}.webp`; }, i * 15));
 }
 
 // Keep phones awake during a game.

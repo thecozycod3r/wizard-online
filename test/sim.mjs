@@ -54,7 +54,13 @@ for (let g = 0; g < 3000; g++) {
       const illegal = hand.find(id => !G.hands[pid] || false);
       void illegal;
     }
+    const wasBid = G.phase === "bid";
     act(G, pid, a);
+    if (wasBid && G.phase === "play") {
+      const sum = Object.values(G.bids).reduce((x, y) => x + y, 0);
+      assert.notEqual(sum, G.round, "bids add up to the round");
+      stats.bidChecks = (stats.bidChecks || 0) + 1;
+    }
   }
   const sum = Object.values(G.total).reduce((a, b) => a + b, 0);
   const scoreSum = G.scores.flatMap(s => Object.values(s.rows)).reduce((a, r) => a + r.pts, 0);

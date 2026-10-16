@@ -56,7 +56,8 @@ export function newGame(players, settings) {
   const total = Math.min(settings.rounds || ROUNDS_FOR[n], ROUNDS_FOR[n]);
   const G = {
     v: 1, seq: 0,
-    settings: { specials, dealerRule: settings.dealerRule !== false, penalty: settings.penalty || "house", rounds: total },
+    // Table rules (fixed): bids may never add up to the cards dealt; miss = −10 − 10 per trick off.
+    settings: { specials, dealerRule: true, penalty: "house", rounds: total },
     players: players.map(p => ({ id: p.id, name: p.name })),
     round: 0, totalRounds: total, dealer: Math.floor(Math.random() * n),
     hands: {}, pile: [], indicator: null, trump: null,

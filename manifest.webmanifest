@@ -1,0 +1,14 @@
+{
+  "name": "Wizard Online",
+  "short_name": "Wizard",
+  "description": "Play Wizard with friends: 30th-anniversary rules, all 9 special cards.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080b1c",
+  "theme_color": "#080b1c",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
