@@ -32,11 +32,17 @@ class Player:
         page.on("pageerror", lambda e: self.errors.append(str(e)))
 
     def center(self, sel):
-        loc = self.page.locator(sel).first
-        if not loc.count(): return None
-        loc.scroll_into_view_if_needed(timeout=2000)
-        b = loc.bounding_box()
-        return (b["x"] + b["width"] / 2, b["y"] + b["height"] / 2) if b else None
+        # the screen re-renders on every state update; retry if the element was just replaced
+        for _ in range(3):
+            try:
+                loc = self.page.locator(sel).first
+                if not loc.count(): return None
+                loc.scroll_into_view_if_needed(timeout=2000)
+                b = loc.bounding_box()
+                return (b["x"] + b["width"] / 2, b["y"] + b["height"] / 2) if b else None
+            except Exception:
+                time.sleep(0.2)
+        return None
 
     def tap(self, sel):
         c = self.center(sel)
