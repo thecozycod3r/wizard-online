@@ -1,0 +1,65 @@
+// One shared Supabase Realtime channel per table. Everyone sends and listens; whoever is currently
+// running the table broadcasts the full state, so any player can take over if that device drops.
+//   const bus = await openBus(code)
+//   bus.on("state" | "hello" | "act" | "err", payload => …)
+//   bus.send(event, payload)        bus.track({ pid })        bus.onPresence(setOfPids => …)
+//   bus.onStatus(ok => …)           true = connected, false = connection lost (auto-reconnects)
+
+import { CONFIG } from "./config.js";
+
+// Channel names are "<prefix><code>"; each game passes its own prefix.
+
+export function newCode() {
+  const abc = "abcdefghjkmnpqrstuvwxyz23456789";
+  return Array.from(crypto.getRandomValues(new Uint8Array(6)), b => abc[b % abc.length]).join("");
+}
+
+let client = null;
+async function supabase() {
+  if (client) return client;
+  if (!window.supabase) {
+    await new Promise((ok, bad) => {
+      const s = document.createElement("script");
+      s.src = new URL("./supabase.min.js", import.meta.url).href;
+      s.onload = ok; s.onerror = () => bad(new Error("Couldn't load the game's network library. Check your internet and reload."));
+      document.head.append(s);
+    });
+  }
+  client = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey, {
+    realtime: { params: { eventsPerSecond: 30 }, heartbeatIntervalMs: 10000 },
+  });
+  return client;
+}
+
+export async function openBus(code, prefix = "g4f-") {
+  const sb = await supabase();
+  const handlers = {}, presenceFns = [], statusFns = [];
+  let tracked = null, ok = false;
+  const ch = sb.channel(prefix + code, {
+    config: { broadcast: { self: false, ack: false }, presence: { key: Math.random().toString(36).slice(2, 12) } },
+  });
+  for (const ev of ["state", "hello", "act", "err", "claim"]) {
+    ch.on("broadcast", { event: ev }, ({ payload }) => (handlers[ev] || []).forEach(f => { try { f(payload); } catch (e) { console.error(e); } }));
+  }
+  const online = () => new Set(Object.values(ch.presenceState()).flat().map(p => p.pid).filter(Boolean));
+  ch.on("presence", { event: "sync" }, () => { const s = online(); presenceFns.forEach(f => f(s)); });
+
+  const ready = new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("Couldn't reach the game server. Check your internet and try again.")), 15000);
+    ch.subscribe(status => {
+      const now = status === "SUBSCRIBED";
+      if (now) { clearTimeout(t); resolve(); if (tracked) ch.track(tracked); }
+      if (now !== ok && (now || ["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status))) { ok = now; statusFns.forEach(f => f(ok)); }
+    });
+  });
+  addEventListener("offline", () => { if (ok) { ok = false; statusFns.forEach(f => f(false)); } });
+  await ready;
+  return {
+    on: (ev, f) => (handlers[ev] ||= []).push(f),
+    send: (ev, payload) => ch.send({ type: "broadcast", event: ev, payload }).catch(() => {}),
+    track: obj => { tracked = obj; return ch.track(obj).catch(() => {}); },
+    onPresence: f => presenceFns.push(f),
+    onStatus: f => statusFns.push(f),
+    connected: () => ok,
+  };
+}
