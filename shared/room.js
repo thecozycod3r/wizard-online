@@ -4,13 +4,15 @@
 //
 //   const room = createRoom({ prefix, engine, defaults, minPlayers, maxPlayers, hostOnly, timers, onUpdate, toast })
 //   room.create(name) · room.join(name) · room.claim(pid) · room.act(action) · room.start()
-//   room.settings(patch) · room.kick(pid) · room.playFor(pid) · room.backToLobby()
+//   room.settings(patch) · room.kick(pid) · room.playFor(pid) · room.backToLobby() · room.leave() · room.rejoin()
 //   room.S  — { mode, code, me, lobby, view, online, status, error, net, isHost }
 //
 // engine: { newGame(players, settings), act(G, pid, a), viewFor(G, pid), waitingOn(G), autoAction(G, pid) }
 // timers(G) → null | { ms, action }: a follow-up the table runner applies by itself (e.g. Wizard's trick pause).
 // Turn timer: settings.timer (seconds: 30 / 60 / 120). When it runs out, the runner plays engine.smartAction (or
 // autoAction) for whoever the game is waiting on. engine.timerKey(G) says when the clock should restart.
+// Leaving: in the lobby the seat is removed; mid-game a bot takes the seat (plays smartAction about once a second) so the
+// game can finish. The player can take the seat back from any device with "This is me".
 
 import { openBus, newCode } from "./net.js";
 
@@ -22,9 +24,9 @@ const rid = () => Math.random().toString(36).slice(2, 10) + Math.random().toStri
 
 export function createRoom(cfg) {
   const { prefix, engine, defaults = {}, minPlayers = 2, maxPlayers = 6, hostOnly = [], timers = () => null, onUpdate = () => {}, toast = () => {} } = cfg;
-  const S = { mode: "landing", code: new URLSearchParams(location.search).get("g"), me: null, lobby: null, view: null, online: {}, status: "", error: "", net: true, isHost: false };
+  const S = { bots: [], left: false, mode: "landing", code: new URLSearchParams(location.search).get("g"), me: null, lobby: null, view: null, online: {}, status: "", error: "", net: true, isHost: false };
   let H = null, BUS = null, ME = null, last = null, lastAt = 0, pending = null, wasSeated = false, onlineSet = new Set(), timer = null;
-  let clockSeen = null, clockAt = 0, lastNote = null;
+  let clockSeen = null, clockAt = 0, lastNote = null, botTimer = null;
   const meKey = () => `${prefix}me-${S.code}`, stKey = () => `${prefix}state-${S.code}`;
   const isOnline = pid => (pid === S.me ? S.net : onlineSet.has(pid));
   const seat = (st, pid) => st.players.findIndex(p => p.id === pid);
@@ -32,7 +34,7 @@ export function createRoom(cfg) {
   // ------------------------------------------------ running the table
   const snap = () => ({ code: H.code, epoch: H.epoch, n: H.n, hostPid: H.me, players: H.players, settings: H.settings, G: H.G,
     clock: H.clock ? { key: H.clock.key, left: Math.max(0, H.clock.deadline - Date.now()), total: (H.settings.timer || 60) * 1000, waiting: H.clock.waiting } : null,
-    note: H.note || null });
+    note: H.note || null, bots: H.bots || [] });
   const timerKey = G => (engine.timerKey ? engine.timerKey(G) : String(G.seq));
   function updateClock() {
     if (!H) return;
@@ -57,9 +59,19 @@ export function createRoom(cfg) {
     if (names.length) { H.note = { n: H.n + 1, msg: `Time's up: a move was made for ${names.join(", ")}.` }; broadcast(); }
     else if (H.clock) H.clock.deadline = Date.now() + 5000; // nothing applied; try again shortly
   }
+  // Seats whose player left are played by a bot, at a human-ish pace.
+  function botTick() {
+    if (!H?.G || !H.bots?.length || H.G.phase === "gameOver") return;
+    for (const pid of engine.waitingOn(H.G).filter(p => H.bots.includes(p))) {
+      let a = null;
+      try { a = (engine.smartAction || engine.autoAction)(H.G, pid); } catch { a = null; }
+      if (a) { applyAct(pid, a, true, true); return; }
+    }
+  }
   function broadcast(bump = true) {
     if (!H) return;
     if (bump) H.n += 1;
+    if (H.bots?.length && H.G) { clearTimeout(botTimer); botTimer = setTimeout(botTick, 1100); }
     updateClock();
     const st = structuredClone(snap());
     LS.set(stKey(), st);
@@ -73,7 +85,16 @@ export function createRoom(cfg) {
     const seq = H.G.seq;
     timer = setTimeout(() => { if (H?.G && H.G.seq === seq) applyAct(H.me, t.action, true, true); }, t.ms);
   }
+  function leaveSeat(pid) {
+    const p = H.players.find(p => p.id === pid); if (!p) return;
+    if (!H.G) { H.players = H.players.filter(x => x.id !== pid); broadcast(); return; }
+    p.token = "left-" + rid();
+    H.bots = [...new Set([...(H.bots || []), pid])];
+    H.note = { n: H.n + 1, msg: `${p.name} left the game. A bot is playing their seat.` };
+    broadcast();
+  }
   function applyAct(pid, a, quiet, internal) {
+    if (a?.type === "_leave") return H && leaveSeat(pid);
     if (!H?.G) return;
     if (hostOnly.includes(a?.type) && !internal && pid !== H.me) return;
     try { engine.act(H.G, pid, a); } catch (e) { if (!quiet) sendErr(pid, e.message); return; }
@@ -111,7 +132,7 @@ export function createRoom(cfg) {
   }
   function onClaim(m) {
     const p = H?.players.find(p => p.id === m?.pid);
-    if (p && m.token) { p.token = String(m.token).slice(0, 40); broadcast(); }
+    if (p && m.token) { p.token = String(m.token).slice(0, 40); H.bots = (H.bots || []).filter(x => x !== p.id); broadcast(); }
   }
   function onAct(m) {
     const p = H?.players.find(p => p.token === m?.token);
@@ -140,7 +161,8 @@ export function createRoom(cfg) {
     else if (st.note && st.note.n > lastNote) { lastNote = st.note.n; (S.notes ||= []).push(st.note.msg); toast(st.note.msg); }
     LS.set(stKey(), st);
     const mine = st.players.find(p => p.token === ME?.token);
-    S.me = mine?.id || null; S.isHost = !!H;
+    S.me = mine?.id || null; S.isHost = !!H; S.bots = st.bots || [];
+    if (mine) S.left = false;
     if (mine) { wasSeated = true; if (ME.pid !== mine.id) { ME.pid = mine.id; LS.set(meKey(), ME); BUS?.track({ pid: mine.id }); } }
     S.lobby = { code: st.code, hostId: st.hostPid, settings: st.settings, players: st.players.map(p => ({ id: p.id, name: p.name, online: isOnline(p.id) })) };
     S.online = Object.fromEntries(st.players.map(p => [p.id, isOnline(p.id)]));
@@ -148,6 +170,7 @@ export function createRoom(cfg) {
     const prev = S.view;
     if (!mine) {
       S.view = null;
+      if (S.left) { S.mode = "left"; return onUpdate(prev); }
       if (st.G) { S.mode = "claim"; S.error = wasSeated ? "You're now playing on another device. Pick your seat to move back here." : ""; }
       else if (wasSeated) { S.mode = "join"; S.error = "The host removed you from the table."; }
       else S.mode = "connecting";
@@ -219,7 +242,7 @@ export function createRoom(cfg) {
     savedName: () => LS.get(meKey())?.name || null,
     lastName: () => LS.get("g4f-name") || "",
     claim(pid) {
-      if (H) { const p = H.players.find(p => p.id === pid); if (p) { p.token = ME.token; broadcast(); } return; }
+      if (H) { const p = H.players.find(p => p.id === pid); if (p) { p.token = ME.token; H.bots = (H.bots || []).filter(x => x !== pid); broadcast(); } return; }
       BUS?.send("claim", { token: ME.token, pid }); S.status = "Taking your seat…"; onUpdate(S.view);
     },
     act(a) {
@@ -236,7 +259,25 @@ export function createRoom(cfg) {
     settings(patch) { if (H && !H.G) { Object.assign(H.settings, patch); broadcast(); } },
     kick(pid) { if (H && !H.G) { H.players = H.players.filter(p => p.id !== pid); broadcast(); } },
     playFor(pid) { if (!H?.G) return; const a = engine.autoAction(H.G, pid); if (a) applyAct(pid, a, false, true); },
-    backToLobby() { if (H) { H.G = null; broadcast(); } },
+    backToLobby() { if (H) { H.G = null; H.bots = []; broadcast(); } },
+    // Leave the table. Mid-game a bot keeps the seat warm; if this device ran the table, another player's device takes over.
+    leave() {
+      if (!S.me) return;
+      S.left = true;
+      if (H) {
+        const ingame = !!H.G;
+        leaveSeat(S.me);
+        if (ingame && H.players.some(p => p.id !== S.me && isOnline(p.id))) { BUS?.send("state", snap()); H = null; clearTimeout(timer); clearTimeout(botTimer); }
+      } else BUS?.send("act", { token: ME.token, a: { type: "_leave" } });
+      S.mode = "left"; S.view = null; onUpdate(null);
+    },
+    // Come back after leaving: pick the seat again mid-game, or rejoin the lobby.
+    rejoin() {
+      S.left = false;
+      if (last?.G) { S.mode = "claim"; S.error = ""; onUpdate(null); }
+      else if (H) { const name = ME.name; H.players.push({ id: "p" + rid().slice(0, 6), token: ME.token, name }); broadcast(); }
+      else { BUS?.send("hello", { token: ME.token, name: ME.name }); S.mode = "connecting"; S.status = "Joining…"; onUpdate(null); }
+    },
     linkFor: code => `${location.origin}${location.pathname}?g=${code}`,
     // { left, total, waiting } in ms for the current turn clock, counted down locally between heartbeats.
     clock() {

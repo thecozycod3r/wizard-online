@@ -75,6 +75,7 @@ function render() {
   else if (S.mode === "join" || S.mode === "connecting") html = viewJoin();
   else if (S.mode === "lobby") html = viewLobby();
   else if (S.mode === "claim") html = viewClaim();
+  else if (S.mode === "left") html = viewLeft();
   else if (S.mode === "game") html = viewGame();
   html += viewOverlay();
   $app.innerHTML = html;
@@ -169,10 +170,15 @@ function viewJoin() {
   </div>`;
 }
 
+function viewLeft() {
+  return `<div class="page"><div class="hero"><div class="eyebrow">You left the game</div><h1 class="title" style="font-size:44px">See you soon</h1>
+    <p class="muted" style="max-width:40ch;margin:0">A bot is playing your seat so the others can finish. Want back in? Rejoin and pick your seat.</p></div>
+    <div class="row" style="justify-content:center"><button class="btn" data-act="rejoin">Rejoin the game</button><a class="btn ghost small" href="../">All games</a>${guideBtn()}</div></div>`;
+}
 function viewClaim() {
   const L = S.lobby;
   const seats = (L?.players || []).map((p, i) => `<li><span class="av" style="background:${SEAT_COLORS[i]}">${esc(p.name[0]?.toUpperCase())}</span>
-      <span style="flex:1">${esc(p.name)} <span class="muted" style="font-size:14px">${p.online ? "· playing now" : "· away"}</span></span>
+      <span style="flex:1">${esc(p.name)} <span class="muted" style="font-size:14px">${S.bots?.includes(p.id) ? "· a bot is playing" : p.online ? "· playing now" : "· away"}</span></span>
       <button class="btn small" data-act="claim" data-pid="${p.id}">This is me</button></li>`).join("");
   return `<div class="page">
     <div class="hero" style="gap:6px"><div class="eyebrow">Game in progress</div><h1 class="title" style="font-size:44px">Rejoin</h1></div>
@@ -268,14 +274,14 @@ function viewGame() {
     const off = S.online[p.id] === false;
     return `<div class="opp ${turn ? "turn" : ""} ${p.id === me ? "me" : ""} ${p.id === lead ? "lead" : ""}">${p.id === lead ? CROWN.replace('class="crown"', `class="crown${crownPop ? " pop" : ""}"`) : ""}
       <div class="nm"><span class="av" style="background:${SEAT_COLORS[i]}">${esc(p.name[0]?.toUpperCase())}</span><span class="pn">${p.id === me ? "You" : esc(p.name)}</span>
-        ${i === v.dealer ? `<span class="badge" title="Dealer">D</span>` : ""}${off ? `<span class="badge off">OFF</span>` : ""}${turn ? `<span class="tmr" data-tmr="${p.id}"></span>` : ""}</div>
+        ${i === v.dealer ? `<span class="badge" title="Dealer">D</span>` : ""}${S.bots?.includes(p.id) ? `<span class="badge bot" title="Left the game: a bot is playing">BOT</span>` : off ? `<span class="badge off">OFF</span>` : ""}${turn ? `<span class="tmr" data-tmr="${p.id}"></span>` : ""}</div>
       <div class="st"><span class="bw" title="Tricks won / bid">${p.won}<span class="muted">/${p.bid ?? "–"}</span></span><b class="sc" title="Score">${p.total}</b></div></div>`;
   }).join("");
 
   const trumpChip = `<span class="rnd tr"><small>TRUMP</small><span style="color:${v.trump ? SUIT_HEX[v.trump] : "var(--ink-dim)"}">${v.trump ? E.SUIT_NAME[v.trump] : ["werewolf", "trump"].includes(v.phase) ? "…" : "None"}</span></span>`;
   const bar = `<div class="bar"><div class="info"><span class="rnd"><small>ROUND</small>${v.round}/${v.totalRounds}</span>
       <span class="trumpbox">${v.indicator ? `<button class="chipbtn" style="padding:0;border:0" data-act="zoom" data-id="${v.indicator}" aria-label="Trump card">${img(v.indicator)}</button>` : ""}${trumpChip}</span></div>
-      ${S.net ? "" : `<span class="badge off" style="font-size:10px;padding:4px 7px">OFFLINE</span>`}<button class="btn ghost small" data-act="scores">Scores</button>${guideBtn("small")}</div>`;
+      ${S.net ? "" : `<span class="badge off" style="font-size:10px;padding:4px 7px">OFFLINE</span>`}<button class="btn ghost small" data-act="leave-ask" aria-label="Leave the game"><span aria-hidden="true">🚪</span><span class="lvt">Leave</span></button><button class="btn ghost small" data-act="scores">Scores</button>${guideBtn("small")}</div>`;
 
   // Centre: current or just-finished trick.
   let plays = [], winner = null, showing = false;
@@ -393,6 +399,7 @@ function viewOverlay() {
   let html = "";
   if (o === "guide") html = sheet("Rules", guideTabs() + `<div class="sheetbody">${guideBody()}</div>`);
   if (o === "scores") html = sheet("Scores", `<div class="sheetbody">${scoreTable()}</div>`);
+  if (o === "leave") html = sheet("Leave the game?", `<div class="sheetbody"><p style="margin-top:0">A bot will play your seat for the rest of this game, so everyone else can finish. Your score stays on the board. Changed your mind? Open the same link and tap <b>This is me</b> to take your seat back.</p><div class="row" style="justify-content:center;margin-top:14px"><button class="btn" data-act="leave">Leave the game</button><button class="btn ghost" data-act="close">Stay</button></div></div>`);
   if (o === "round" && S.view?.phase === "roundEnd") html = sheet(`Round ${S.view.round} results`, `<div class="sheetbody">${roundTable()}</div>`, roundFoot());
   if (o === "over" && S.view?.phase === "gameOver") html = sheet("Final scores", `<div class="sheetbody">${podium()}${scoreTable()}</div>`, overFoot());
   if (S.ui.zoom) html += `<div class="zoom" data-act="unzoom"><img src="cards/${S.ui.zoom}@2x.webp" alt="${esc(E.cardLabel(S.ui.zoom))}"></div>`;
@@ -591,6 +598,9 @@ $app.addEventListener("click", e => {
   switch (a) {
     case "guide": S.ui.overlay = "guide"; break;
     case "scores": S.ui.overlay = "scores"; break;
+    case "leave-ask": S.ui.overlay = "leave"; break;
+    case "leave": S.ui.overlay = null; room.leave(); return;
+    case "rejoin": room.rejoin(); return;
     case "close": S.ui.overlay = null; break;
     case "closebg": if (e.target === el && !["round", "over"].includes(S.ui.overlay)) S.ui.overlay = null; else return; break;
     case "gtab": S.ui.guideTab = el.dataset.k; break;

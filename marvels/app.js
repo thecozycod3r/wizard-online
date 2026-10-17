@@ -285,6 +285,7 @@ function render() {
   if (S.mode === "landing") h = viewLanding();
   else if (S.mode === "join" || S.mode === "connecting") h = viewJoin();
   else if (S.mode === "claim") h = viewClaim();
+  else if (S.mode === "left") h = viewLeft();
   else if (S.mode === "lobby") h = viewLobby();
   else if (S.mode === "game") h = viewGame();
   h += viewOverlay();
@@ -320,9 +321,14 @@ function viewJoin() {
     <div class="row" style="justify-content:center">${rulesBtn()}<a class="btn ghost small" href="./">Start my own game</a></div></div>`;
 }
 
+function viewLeft() {
+  return `<div class="page"><div class="hero"><div class="eyebrow">You left the game</div><h1 class="title" style="font-size:44px">See you soon</h1>
+    <p class="muted" style="max-width:40ch;margin:0">A bot is playing your seat so the others can finish. Want back in? Rejoin and pick your seat.</p></div>
+    <div class="row" style="justify-content:center"><button class="btn" data-act="rejoin">Rejoin the game</button><a class="btn ghost small" href="../">All games</a>${rulesBtn()}</div></div>`;
+}
 function viewClaim() {
   const seats = (S.lobby?.players || []).map((p, i) => `<li><span class="av" style="background:${SEAT[i]}">${esc(p.name[0]?.toUpperCase())}</span>
-      <span style="flex:1">${esc(p.name)} <span class="muted" style="font-size:14px">${p.online ? "· playing now" : "· away"}</span></span>
+      <span style="flex:1">${esc(p.name)} <span class="muted" style="font-size:14px">${S.bots?.includes(p.id) ? "· a bot is playing" : p.online ? "· playing now" : "· away"}</span></span>
       <button class="btn small" data-act="claim" data-pid="${p.id}">This is me</button></li>`).join("");
   return `<div class="page"><div class="hero"><div class="eyebrow">Game in progress</div><h1 class="title" style="font-size:44px">Rejoin</h1></div>
     <section class="panel"><div class="eyebrow">Which player are you?</div><ul class="plist">${seats}</ul>
@@ -369,7 +375,7 @@ function oppChip(p, lead, pop) {
   return `<div class="opp ${isNb ? "nb" : ""} ${w ? "wait" : ""}" data-pid="${p.id}" data-act="player">
     ${p.id === lead ? CROWN.replace('class="crown"', `class="crown${pop ? " pop2" : ""}"`) : ""}
     <div class="side">${p.id === leftPid() ? "◀ Left" : p.id === rightPid() ? "Right ▶" : esc(m.city)}${isNb ? ` · ${esc(m.city)}` : ""}</div>
-    <div class="nm"><span class="av" style="background:${SEAT[i]}">${esc(p.name[0]?.toUpperCase())}</span><span class="pn">${esc(p.name)}</span>${off ? `<span class="badge off">OFF</span>` : ""}<span class="tmr" data-tmr="${p.id}"></span><span class="pts">${p.points}</span></div>
+    <div class="nm"><span class="av" style="background:${SEAT[i]}">${esc(p.name[0]?.toUpperCase())}</span><span class="pn">${esc(p.name)}</span>${S.bots?.includes(p.id) ? `<span class="badge bot" title="Left the game: a bot is playing">BOT</span>` : off ? `<span class="badge off">OFF</span>` : ""}<span class="tmr" data-tmr="${p.id}"></span><span class="pts">${p.points}</span></div>
     <div class="stat"><span>${ic("coin")}${p.coins}</span><span>${ic("shield")}${p.shields}</span><span>▲${p.stages}/${stTot}</span>${tok ? `<span>${tok > 0 ? "+" : ""}${tok}⚔</span>` : ""}</div>
     <div class="prod">${prodHtml(p.produce.slice(0, p.trade), 6)}</div>${pickTxt}</div>`;
 }
@@ -411,7 +417,7 @@ function viewGame() {
     <div class="bar"><div class="info"><span class="agebox"><small>AGE</small>${ROMAN[v.age - 1]}</span>
       <span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span class="turnpips">${[1, 2, 3, 4, 5, 6].map(t => `<i class="${t < v.turn ? "on" : t === v.turn ? "now" : ""}"></i>`).join("")}</span>
       <span class="passdir">${v.age === 2 ? "Hands pass right ▶" : "◀ Hands pass left"} · to ${esc(passName)}</span></span>${S.net ? "" : `<span class="badge off">OFFLINE</span>`}</div>
-      <button class="btn ghost small" data-act="scores">Scores</button>${rulesBtn("small")}</div>
+      <button class="btn ghost small" data-act="leave-ask" aria-label="Leave the game"><span aria-hidden="true">🚪</span><span class="lvt">Leave</span></button><button class="btn ghost small" data-act="scores">Scores</button>${rulesBtn("small")}</div>
     <div class="scroll"><div class="opps">${order.map(p => oppChip(p, lead, pop)).join("")}</div>${city}</div>
     ${dockHtml()}
     <div class="zones" id="zones">${["build", "stage", "sell"].map(h => `<div class="zone" data-how="${h}"><b>${{ build: "Build", stage: "Marvel stage", sell: "Sell" }[h]}</b><span></span></div>`).join("")}</div></div>`;
@@ -440,7 +446,8 @@ const sheet = (title, body, foot = "", lock = false) => `<div class="overlay" ${
 function viewOverlay() {
   const v = V();
   let h = "";
-  if (ui.overlay === "rules") h = sheet("Rules", rulesTabs() + `<div class="sheetbody guide">${rulesBody()}</div>`);
+  if (ui.overlay === "leave" && v) h = sheet("Leave the game?", `<div class="sheetbody"><p style="margin-top:0">A bot will play your seat for the rest of this game, so everyone else can finish. Your score stays on the board. Changed your mind? Open the same link and tap <b>This is me</b> to take your seat back.</p><div class="row" style="justify-content:center;margin-top:14px"><button class="btn" data-act="leave">Leave the game</button><button class="btn ghost" data-act="close">Stay</button></div></div>`);
+  else if (ui.overlay === "rules") h = sheet("Rules", rulesTabs() + `<div class="sheetbody guide">${rulesBody()}</div>`);
   else if (ui.overlay === "card" && v) h = sheet(cardOf(ui.card).name, `<div class="sheetbody">${cardDetail()}</div>`);
   else if (ui.overlay === "info" && v) h = sheet(cardOf(ui.card).name, `<div class="sheetbody">${cardInfo(ui.card)}</div>`);
   else if (ui.overlay === "player" && v) h = sheet(ui.player === S.me ? "Your city" : `${nameOf(ui.player)}'s city`, `<div class="sheetbody">${playerDetail()}</div>`);
@@ -546,6 +553,9 @@ $app.addEventListener("click", e => {
   switch (a) {
     case "rules": ui.overlay = "rules"; break;
     case "scores": ui.overlay = "scores"; break;
+    case "leave-ask": ui.overlay = "leave"; break;
+    case "leave": ui.overlay = null; room.leave(); return;
+    case "rejoin": room.rejoin(); return;
     case "final": ui.overlay = "over"; break;
     case "close": ui.overlay = null; break;
     case "closebg": if (e.target !== el) return; ui.overlay = null; break;
