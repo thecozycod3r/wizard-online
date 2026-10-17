@@ -12,12 +12,12 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-HOOK = "__wiz" if GAME == "wizard" else "__lode"
+HOOK = {"wizard": "__wiz", "lodestone": "__lode", "marvels": "__mar"}[GAME]
 ROOT = Path(__file__).resolve().parents[2]
 if GAME == "wizard":
     PLAN = open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0]
 else:
-    PLAN = open(ROOT / "lodestone/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0]
+    PLAN = open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0]
 ACT = f"a => {{ delete a.from; window.{HOOK}.room.act(a); }}"
 J = f"window.{HOOK}"
 
@@ -36,7 +36,7 @@ def main():
         link = host.inner_text("#link")
         for pg, n in zip(pages[1:], ["Anya", "Henry", "Freya"]):
             pg.goto(link); pg.fill("#nm", n); pg.click("text=Join game")
-        host.wait_for_selector("text=Players · 4/6", timeout=30000)
+        host.wait_for_selector(f"text=Players · 4/{7 if GAME == 'marvels' else 6}", timeout=30000)
         host.click('[data-act="timer"][data-v="30"]')
         time.sleep(1)
         assert all(p.evaluate(f"() => {J}.S.lobby.settings.timer") == 30 for p in pages), "timer setting not shared"
