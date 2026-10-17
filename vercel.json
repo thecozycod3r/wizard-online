@@ -1,6 +1,7 @@
 {
   "cleanUrls": true,
-  "rewrites": [{ "source": "/splendor", "destination": "/lodestone/" }, { "source": "/splendor/", "destination": "/lodestone/" }, { "source": "/splendor/:path+", "destination": "/lodestone/:path+" }],
+  "redirects": [{ "source": "/splendor", "destination": "/splendor/", "permanent": false }],
+  "rewrites": [{ "source": "/splendor/", "destination": "/lodestone/" }, { "source": "/splendor/:path+", "destination": "/lodestone/:path+" }],
   "headers": [
     { "source": "/wizard/cards/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
     { "source": "/marvels/art/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
