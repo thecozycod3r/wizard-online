@@ -20,3 +20,6 @@ Tests (serve this folder with `python3 -m http.server 8765` first):
 - `python3 shared/test/edge.py <game> [url]` — 16 edge cases
 - `python3 shared/test/fx.py <game> [url]` — animation probe: every effect a full game should show
 - `python3 shared/test/leave.py <game> [url]` — a player leaves mid-game (bot takes the seat), the host leaves, the player rejoins
+
+- `python3 shared/test/swipe.py <game> [url]` — phone swipes on every side-scrolling row (starting on a card) while moves land: the row follows the finger, stays put through updates, never picks a card up.
+- `python3 shared/test/ergo.py <game> [url]` — full table, every seat on a different screen (SE, Pixel, phone sideways, iPad, laptop, S9+, Pro Max): no sideways scroll, tap targets ≥32px, no text <10px, nothing tappable covered, own area on screen. Screenshots to the scratchpad.

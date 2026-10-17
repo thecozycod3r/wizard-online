@@ -1,6 +1,7 @@
 import * as E from "./engine.js";
 import { DATA } from "./data.js";
 import { createRoom } from "../shared/room.js";
+import { hscroll } from "../shared/hscroll.js";
 import { RULES, setupTable, powerText } from "./rules.js";
 
 const $app = document.getElementById("app");
@@ -278,9 +279,13 @@ function showBattles(b) {
 }
 
 // ---------------------------------------------------------------- views
+const HS = hscroll(".hand,.opps,.tabs,.tbl");
+let hsT = null;
 function render() {
   if (dragging) { queued = true; return; }
-  const sc = document.querySelector(".scroll")?.scrollTop, sb = document.querySelector(".sheetbody")?.scrollTop, hs = document.querySelector(".hand")?.scrollLeft;
+  clearTimeout(hsT);
+  if (S.mode === "game" && HS.busy()) { hsT = setTimeout(render, 150); return; }
+  const sc = document.querySelector(".scroll")?.scrollTop, sb = document.querySelector(".sheetbody")?.scrollTop, hs = HS.save();
   let h = "";
   if (S.mode === "landing") h = viewLanding();
   else if (S.mode === "join" || S.mode === "connecting") h = viewJoin();
@@ -292,7 +297,7 @@ function render() {
   $app.innerHTML = h;
   if (sc) { const e = document.querySelector(".scroll"); if (e) e.scrollTop = sc; }
   if (sb) { const e = document.querySelector(".sheetbody"); if (e) e.scrollTop = sb; }
-  if (hs) { const e = document.querySelector(".hand"); if (e) e.scrollLeft = hs; }
+  HS.restore(hs);
   const dock = document.querySelector(".dock");
   if (dock) document.documentElement.style.setProperty("--dockh", dock.offsetHeight + "px");
 }
@@ -613,7 +618,7 @@ $app.addEventListener("pointermove", e => {
   if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 10) return;
   if (!d.moved) {
     // a sideways swipe scrolls the hand; only an upward drag picks the card up
-    if (Math.abs(e.clientX - d.x0) > Math.abs(e.clientY - d.y0) * 1.2 || !canPick() || V().pick) { dragging = null; return; }
+    if (Math.abs(e.clientX - d.x0) > Math.abs(e.clientY - d.y0) * 1.2 || !canPick() || V().pick) { dragging = null; if (queued) { queued = false; render(); } return; }
     d.moved = true; e.preventDefault();
     const r = d.el.getBoundingClientRect(); d.w = r.width; d.h = r.height;
     d.g = document.createElement("div"); d.g.className = "dragghost"; d.g.style.width = r.width + "px";
@@ -687,4 +692,5 @@ setTimeout(() => {
   render();
 })();
 
+addEventListener("resize", () => S.mode === "game" && render());   // turning the phone changes the dock height
 window.__mar = { S, room, ui, E };

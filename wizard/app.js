@@ -1,5 +1,6 @@
 import * as E from "./engine.js";
 import { createRoom } from "../shared/room.js";
+import { hscroll } from "../shared/hscroll.js";
 import { SPECIAL_CARDS } from "./specials.js";
 import { RULES_HTML } from "./rules-content.js";
 import { playFx, burst, welcome } from "./fx.js";
@@ -67,9 +68,13 @@ function toast(html) {
 }
 
 // ---------------------------------------------------------------- rendering
+const HS = hscroll(".opps,.tabs,.tbl");
+let hsT = null;
 function render() {
   if (dragging) { renderQueued = true; return; }
-  const scroll = document.querySelector(".sheetbody")?.scrollTop;
+  clearTimeout(hsT);
+  if (S.mode === "game" && HS.busy()) { hsT = setTimeout(render, 150); return; }
+  const scroll = document.querySelector(".sheetbody")?.scrollTop, hs = HS.save();
   let html = "";
   if (S.mode === "landing") html = viewLanding();
   else if (S.mode === "join" || S.mode === "connecting") html = viewJoin();
@@ -80,6 +85,7 @@ function render() {
   html += viewOverlay();
   $app.innerHTML = html;
   if (scroll) { const b = document.querySelector(".sheetbody"); if (b) b.scrollTop = scroll; }
+  HS.restore(hs);
   if (S.mode === "game") sizeHand();
   if (S.fxQueue.length) requestAnimationFrame(runFx);
 }
@@ -297,7 +303,7 @@ function viewGame() {
   }).join("");
   let zoneInner = tcards;
   if (!plays.length) {
-    if (["bid", "werewolf", "trump"].includes(v.phase) && v.indicator) zoneInner = `<div class="tcard" style="width:calc(var(--cw)*1.15)">${img(v.indicator)}<span class="who muted">Trump card</span></div>`;
+    if (["bid", "werewolf", "trump"].includes(v.phase) && v.indicator) zoneInner = `<div class="tcard trumpshow" style="width:calc(var(--cw)*1.15)">${img(v.indicator)}<span class="who muted">Trump card</span></div>`;
     else if (myTurnPlay) zoneInner = `<span class="muted" style="font-family:var(--caps);font-size:13px">Drag a card here to lead</span>`;
   }
   const canDrop = myTurnPlay || (v.phase === "juggler" && !v.pending.done.includes(me));

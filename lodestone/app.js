@@ -1,6 +1,7 @@
 import * as E from "./engine.js";
 import { DATA } from "./data.js";
 import { createRoom } from "../shared/room.js";
+import { hscroll } from "../shared/hscroll.js";
 import { RULES, setupTable } from "./rules.js";
 
 const $app = document.getElementById("app");
@@ -161,9 +162,13 @@ function welcome() {
 }
 
 // ---------------------------------------------------------------- views
+const HS = hscroll(".mrow,.opps,.nobles,.tabs,.tbl");
+let hsT = null;
 function render() {
   if (dragging) { queued = true; return; }
-  const sc = document.querySelector(".scroll")?.scrollTop, sb = document.querySelector(".sheetbody")?.scrollTop;
+  clearTimeout(hsT);
+  if (S.mode === "game" && HS.busy()) { hsT = setTimeout(render, 150); return; }
+  const sc = document.querySelector(".scroll")?.scrollTop, sb = document.querySelector(".sheetbody")?.scrollTop, hs = HS.save();
   let h = "";
   if (S.mode === "landing") h = viewLanding();
   else if (S.mode === "join" || S.mode === "connecting") h = viewJoin();
@@ -175,6 +180,7 @@ function render() {
   $app.innerHTML = h;
   if (sc) { const e = document.querySelector(".scroll"); if (e) e.scrollTop = sc; }
   if (sb) { const e = document.querySelector(".sheetbody"); if (e) e.scrollTop = sb; }
+  HS.restore(hs);
   if (S.mode === "game") sizeCards();
 }
 
@@ -288,7 +294,7 @@ function viewGame() {
     <div class="head"><span class="eyebrow">Your ledger</span><span class="muted" style="font-family:var(--num);font-weight:700;font-size:13px">◉ ${toks}/10</span>
       <span class="mynobles">${P.nobles.map(id => `<img src="art/${base(id)}.webp" alt="">`).join("")}</span><span class="pts">${P.points}<small> pts</small></span></div>
     <div class="holds">${holds}</div>
-    <div class="myres"><span class="lab">Reserved</span>${P.reserved.length ? P.reserved.map(r => cardHtml(r.id, "reserved").replace('class="dcard', 'style="--cw:46px" class="dcard')).join("") : `<span class="muted" style="font-size:13px">none — tap a card or deck to reserve (gives a Gold)</span>`}</div></div>`;
+    <div class="myres"><span class="lab">Reserved</span>${P.reserved.length ? P.reserved.map(r => cardHtml(r.id, "reserved").replace('class="dcard', 'style="--cw:46px" class="dcard')).join("") : `<span class="muted rhint">none yet · tap a card to reserve (+1 Gold)</span>`}</div></div>`;
   const board = `<div class="sec"><h3>Nobles · 3 points each</h3><div class="nobles">${nobles || `<span class="muted">All nobles have been claimed.</span>`}</div></div>
     <div class="sec"><h3>Market</h3>${rows}</div>
     <div class="sec"><h3>Bank${turnOn ? " · tap to pick" : ""}</h3><div class="bank">${bank}</div></div>
@@ -419,8 +425,9 @@ function podium() {
 function sizeCards() {
   const main = document.querySelector(".main"); if (!main) return;
   const w = main.clientWidth;
-  const desk = innerWidth >= 860;
-  const shortH = innerHeight < 700 && !desk;
+  const side = innerWidth > innerHeight && innerHeight <= 540 && innerWidth <= 1100;   // phone held sideways: two columns
+  const desk = innerWidth >= 860 || side;
+  const shortH = innerHeight < 700 && innerWidth < 860;
   const longest = desk ? Math.max(...Object.values(V()?.settings.display || { 1: 4 })) + 1 : 5;
   const cw = Math.max(52, Math.min(desk ? 118 : 96, (w - longest * 6) / (longest + 0.1), shortH ? 60 : 999));
   document.documentElement.style.setProperty("--cw", cw + "px");
@@ -510,7 +517,8 @@ $app.addEventListener("pointermove", e => {
   const d = dragging; if (!d) return;
   if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 10) return;
   if (!d.moved) {
-    if (!myTurn()) { dragging = null; return; }
+    // sideways = swiping the row, leave it to the browser
+    if (!myTurn() || (e.pointerType === "touch" && Math.abs(e.clientX - d.x0) > Math.abs(e.clientY - d.y0))) { dragging = null; if (queued) { queued = false; render(); } return; }
     d.moved = true; e.preventDefault();
     const r = d.el.getBoundingClientRect(); d.w = r.width; d.h = r.height;
     d.g = document.createElement("div"); d.g.className = "dragghost"; d.g.style.width = r.width + "px";

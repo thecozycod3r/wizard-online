@@ -42,7 +42,7 @@ button{font:inherit;color:inherit}
   background:linear-gradient(180deg,#f0d48d,#c9a24a);color:#1b1505;box-shadow:0 3px 0 #7d6326,0 6px 18px rgba(0,0,0,.35);user-select:none}
 .btn:active{transform:translateY(2px);box-shadow:0 1px 0 #7d6326}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none}
-.btn.small{padding:7px 12px;font-size:12px}
+.btn.small{padding:7px 12px;font-size:12px;min-height:36px}
 .btn[disabled]{opacity:.35;pointer-events:none}
 .btn:focus-visible,.chipbtn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 input[type=text]{font:inherit;font-size:18px;color:var(--ink);background:var(--felt);border:1px solid var(--line);border-radius:10px;padding:11px 14px;width:100%}
@@ -86,7 +86,7 @@ h1,h2,h3{margin:0}
 .bar{display:flex;align-items:center;gap:10px;padding-block:10px 6px}
 .bar .info{flex:1;min-width:0;display:flex;align-items:center;gap:12px;overflow:hidden}
 .rnd{font-family:var(--caps);font-weight:900;font-size:17px;line-height:1;white-space:nowrap;display:flex;flex-direction:column;font-variant-numeric:tabular-nums}
-.rnd small{font-size:9px;letter-spacing:.2em;color:var(--gold-dim);font-weight:700}
+.rnd small{font-size:10.5px;letter-spacing:.2em;color:var(--gold-dim);font-weight:700}
 .trumpbox{display:flex;align-items:center;gap:8px;min-width:0}
 .trumpbox img{width:34px;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.6)}
 .suitchip{font-family:var(--caps);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:4px 8px;border-radius:999px;color:#0b0b14;white-space:nowrap}
@@ -103,7 +103,7 @@ h1,h2,h3{margin:0}
 .opp .pn{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .rnd.tr span{font-size:15px}
 .opp .st b{color:var(--ink)}
-.badge{font-family:var(--caps);font-size:9px;font-weight:900;letter-spacing:.1em;padding:1px 5px;border-radius:4px;background:var(--gold);color:#1b1505}
+.badge{font-family:var(--caps);font-size:10px;font-weight:900;letter-spacing:.1em;padding:1px 5px;border-radius:4px;background:var(--gold);color:#1b1505}
 .badge.off{background:#555;color:#ddd}
 .center{flex:1;min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;position:relative}
 .trickzone{position:relative;width:min(100%,560px);min-height:170px;border:2px dashed transparent;border-radius:22px;display:flex;flex-wrap:wrap;
@@ -274,11 +274,12 @@ td:first-child,th:first-child{text-align:left}
   .opp{flex:0 0 auto;max-width:none}
   .center{grid-column:2;grid-row:2;min-height:0}
   .trickzone{min-height:90px} :root{--tw:58px}
+  .trickzone .trumpshow{width:var(--tw)!important}   /* the top-bar thumbnail already shows trump; keep this one small */
   .handbar{grid-column:2;grid-row:3;min-height:30px}
   .hand{grid-column:2;grid-row:4;padding-block:2px 6px}
   .prompt{padding:8px 10px;gap:6px}
 }
-@media (max-width:400px){ .opps{gap:4px} .opp{min-width:66px;padding:5px 5px} .opp .av{width:18px;height:18px;font-size:10px} .opp .nm{font-size:12px;gap:4px} .bar{gap:6px} .bar .info{gap:7px} .rnd.tr span{font-size:13px} .trumpbox img{width:28px} .bar .btn.small{padding:7px 9px;letter-spacing:.04em} }
+@media (max-width:400px){ .opps{gap:4px} .opp{min-width:66px;padding:5px 5px} .opp .av{width:18px;height:18px;font-size:10px} .opp .nm{font-size:12px;gap:4px} .bar{gap:6px} .bar .info{gap:7px} .rnd.tr span{font-size:13px} .trumpbox img{width:32px} .bar .btn.small{padding:7px 9px;letter-spacing:.04em} }
 @media (max-width:380px){ .bar .btn.small{padding:7px 9px} .suitchip{font-size:10px;padding:3px 6px} }
 @media (prefers-reduced-motion:reduce){.hcard,.tcard,.sheet,.opp{animation:none!important;transition:none!important}}
 .badge.bot{background:#5b6bd6;color:#fff}
