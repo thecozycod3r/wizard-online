@@ -74,5 +74,5 @@ export const RULES = {
       <li>Reveal nobles equal to the number of players + 1.</li>
       <li>Use 7 tokens of each ore; Gold stays at 5.</li>
       <li>First to 15 points triggers the final round.</li></ul>
-    <p class="muted" style="font-size:14px">Lodestone follows the rules of Splendor by Marc André (Space Cowboys, 2014). Names and artwork are original to this site.</p>`,
+    <p class="muted" style="font-size:14px">Splendor is a game by Marc André (Space Cowboys, 2014). This version uses an ore theme; the card scenes and artwork are original to this site.</p>`,
 };

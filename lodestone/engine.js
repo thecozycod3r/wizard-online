@@ -34,7 +34,7 @@ const sum = o => Object.values(o).reduce((a, b) => a + b, 0);
 
 export function newGame(players, settings = {}) {
   const n = players.length;
-  if (n < MIN_PLAYERS || n > MAX_PLAYERS) throw new Error("Lodestone needs 2 to 6 players.");
+  if (n < MIN_PLAYERS || n > MAX_PLAYERS) throw new Error("Splendor needs 2 to 6 players.");
   const S = setupFor(n);
   const copies = id => (S.twin ? [id, id + "b"] : [id]);
   const decks = {};

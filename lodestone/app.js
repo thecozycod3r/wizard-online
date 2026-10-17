@@ -65,7 +65,7 @@ function onUpdate(prev) {
     const mineNow = v.waiting.includes(S.me) && v.phase !== "gameOver";
     const minePrev = prev ? prev.waiting.includes(S.me) && prev.phase === v.phase && prev.turn === v.turn : false;
     if (mineNow && !minePrev) navigator.vibrate?.([18, 40, 18]);
-    document.title = mineNow ? "● Your turn · Lodestone" : "Lodestone · Games4free";
+    document.title = mineNow ? "● Your turn · Splendor" : "Splendor · Games4free";
     const wk = "lode-welcome-" + v.gameId;
     if (v.gameId && v.round === 1 && !LS.get(wk)) { LS.set(wk, 1); setTimeout(welcome, 200); }
   }
@@ -149,7 +149,7 @@ function banner(img, title, line) {
   document.body.append(d); setTimeout(() => d.remove(), 2100);
 }
 function welcome() {
-  const words = "Welcome to Dhruv's Vibe Coded Lodestone".split(" ");
+  const words = "Welcome to Dhruv's Vibe Coded Splendor".split(" ");
   const d = document.createElement("div"); d.className = "fx-welcome";
   d.innerHTML = `<div class="wl-fan">${ALL.map((o, i) => `<img src="art/tok-${o}@2x.webp" alt="" style="--i:${i - 2.5}">`).join("")}</div>
     <h1>${words.map((w, i) => `<span style="animation-delay:${.5 + i * .16}s">${w}</span>`).join(" ")}</h1><p>Manifest his greatness and you may win</p><small>Tap to start</small>`;
@@ -182,7 +182,7 @@ const fan = ids => `<div class="fan">${ids.map((id, i) => `<img src="art/${id}.w
 
 function viewLanding() {
   return `<div class="page"><div class="hero">${fan(["sil11", "nob06", "cin32", "iro34"])}
-      <div class="eyebrow">Games4free · Splendor rules</div><h1 class="title">Lodestone</h1>
+      <div class="eyebrow">Games4free · Ore edition</div><h1 class="title">Splendor</h1>
       <p class="muted" style="max-width:40ch;margin:0">Gather ores, build mines and guilds, and win the favour of nobles. 2–6 players; 5–6 play the twin-deck variant.</p></div>
     <form class="panel" data-form="create"><label for="nm" class="eyebrow">Your name</label>
       <div class="row"><input id="nm" type="text" maxlength="18" autocomplete="nickname" placeholder="e.g. Dhruv" value="${esc(room.lastName())}" required><button class="btn" type="submit">Start a game</button></div>
@@ -193,7 +193,7 @@ function viewLanding() {
 function viewJoin() {
   const busy = S.mode === "connecting";
   return `<div class="page"><div class="hero">${fan(["tok-silver", "tok-gold", "tok-cinnabar"])}
-      <div class="eyebrow">You're invited to a game of</div><h1 class="title">Lodestone</h1></div>
+      <div class="eyebrow">You're invited to a game of</div><h1 class="title">Splendor</h1></div>
     <form class="panel" data-form="join"><label for="nm" class="eyebrow">Your name</label>
       <div class="row"><input id="nm" type="text" maxlength="18" autocomplete="nickname" placeholder="Your name" value="${esc(room.lastName())}" required ${busy ? "disabled" : ""}>
       <button class="btn" type="submit" ${busy ? "disabled" : ""}>${busy ? "Joining…" : "Join game"}</button></div>
@@ -533,7 +533,7 @@ $app.addEventListener("pointercancel", () => { if (dragging?.g) { dragging.g.rem
 
 async function share() {
   const url = room.linkFor(S.code);
-  if (navigator.share) { try { await navigator.share({ title: "Lodestone", text: "Join my game of Lodestone:", url }); return; } catch (e) { if (e.name === "AbortError") return; } }
+  if (navigator.share) { try { await navigator.share({ title: "Splendor", text: "Join my game of Splendor:", url }); return; } catch (e) { if (e.name === "AbortError") return; } }
   copy();
 }
 async function copy() {
