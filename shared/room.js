@@ -223,10 +223,10 @@ export function createRoom(cfg) {
 
   // Heartbeat, resend, takeover watchdog.
   setInterval(() => {
-    if (!BUS) return;
     const now = Date.now();
-    if (now - tickAt > 4000) woke(now - tickAt);   // timers were frozen: the page slept without a visibility event
-    tickAt = now;
+    const gap = now - tickAt; tickAt = now;          // (counted before connecting too, so time spent typing a name isn't "sleep")
+    if (!BUS) return;
+    if (gap > 4000) woke(gap);   // timers were frozen: the page slept without a visibility event
     if (H && holding()) return;          // just woke while running the table: wait to hear whether someone took over
     if (H && rearm) {                    // nobody took over: carry on running the table, with a little grace on the turn clock
       rearm = false;

@@ -70,7 +70,9 @@ export async function openBus(code, prefix = "g4f-") {
     revive(hard) {
       const rt = sb.realtime;
       try {
-        if (hard && rt.isConnected()) { rt.disconnect(); setTimeout(() => rt.connect(), 150); }
+        // close the socket the normal way (not disconnect(), which silences it): the client then flags its channels,
+        // reconnects and re-joins them by itself
+        if (hard && rt.conn) rt.conn.close();
         else if (!rt.isConnected()) rt.connect();
       } catch { /* the client keeps retrying by itself */ }
     },
