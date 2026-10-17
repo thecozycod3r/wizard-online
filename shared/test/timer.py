@@ -69,6 +69,9 @@ def main():
                 h = [i for i, p in enumerate(pages) if p in active and p.evaluate(f"() => {J}.room.isHost")]
                 if h: takeover = (['Dhruv', 'Anya', 'Henry', 'Freya'][h[0]], round(time.time() - dropped, 1))
             time.sleep(0.4)
+        for _ in range(30):   # let every remaining screen receive the final state
+            if all(p.evaluate(f"() => {J}.S.view?.phase") == "gameOver" for p in active): break
+            time.sleep(0.5)
         timed_out = notes()
         phase = [p.evaluate(f"() => {J}.S.view?.phase") for p in pages if p in active]
         print(f"{GAME}: finished={all(x == 'gameOver' for x in phase)} in {int(time.time() - t0)}s | Henry moves made by the timer: {timed_out} | "

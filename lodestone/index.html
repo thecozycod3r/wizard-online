@@ -227,7 +227,8 @@ td:first-child,th:first-child{text-align:left}
   -webkit-background-clip:text;background-clip:text;color:transparent;animation:wlword .8s 1.6s both,shine 2.4s 2.2s linear infinite}
 @keyframes shine{to{background-position:200% center}}
 .fx-welcome small{font-family:var(--num);font-size:11px;letter-spacing:.3em;color:var(--dim);animation:wlword .6s 3s both}
-#app.shake{animation:shake .5s}
+#app{overflow:clip}
+#app.shake>*{animation:shake .5s}
 @keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
 
 @media (max-width:859px){

@@ -230,7 +230,8 @@ td:first-child,th:first-child{text-align:left}
 .fx-morph{position:absolute;width:160px;height:160px;margin:-80px 0 0 -80px;border-radius:50%;
   background:conic-gradient(from 0deg,rgba(162,114,255,.0),rgba(162,114,255,.8),rgba(255,210,120,.8),rgba(162,114,255,0));animation:fxmorph 1s ease-out forwards;filter:blur(4px)}
 @keyframes fxmorph{from{transform:scale(.2) rotate(0);opacity:1}to{transform:scale(2.2) rotate(540deg);opacity:0}}
-#app.shake{animation:shake .6s cubic-bezier(.36,.07,.19,.97)}
+#app{overflow:clip}
+#app.shake>*{animation:shake .6s cubic-bezier(.36,.07,.19,.97)}
 @keyframes shake{10%,90%{transform:translate(calc(var(--shake) * -.3),0)}20%,80%{transform:translate(calc(var(--shake) * .5),calc(var(--shake) * -.2))}
   30%,50%,70%{transform:translate(calc(var(--shake) * -1),calc(var(--shake) * .3))}40%,60%{transform:translate(var(--shake),calc(var(--shake) * -.3))}}
 
