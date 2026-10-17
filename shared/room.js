@@ -29,19 +29,22 @@ export function createRoom(cfg) {
   let clockSeen = null, clockAt = 0, lastNote = null, botTimer = null;
   // Phones pause pages in the background (screen lock, switching apps). On waking, everything this device knows is stale:
   // it must not take the table over, and if it was running the table it holds off until it hears from the others.
-  let tickAt = Date.now(), wokeAt = 0, heardAt = 0, reviveT = null, rearm = false;
+  let tickAt = Date.now(), wokeAt = 0, heardAt = 0, reviveT = null, rearm = false, hiddenAt = 0;
   const heard = () => { heardAt = Date.now(); };
   const holding = () => wokeAt && heardAt < wokeAt && Date.now() - wokeAt < 5000;
-  function woke() {
+  function woke(away = 0) {
     wokeAt = Date.now(); lastAt = wokeAt; clockAt = wokeAt;
     if (!BUS) return;
     if (H) { clearTimeout(timer); clearTimeout(botTimer); rearm = true; }
-    BUS.revive(false);
+    BUS.revive(away > 5000);   // phones close sockets in the background: after more than a few seconds away, reconnect at once
     if (!H && ME) BUS.send("hello", { token: ME.token, name: ME.name });
     clearTimeout(reviveT);
     reviveT = setTimeout(() => { if (heardAt < wokeAt) { BUS.revive(true); if (!H && ME) setTimeout(() => BUS.send("hello", { token: ME.token, name: ME.name }), 1500); } }, 2500);
   }
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") woke(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") hiddenAt = Date.now();
+    else woke(hiddenAt ? Date.now() - hiddenAt : 0);
+  });
   addEventListener("pageshow", e => { if (e.persisted) woke(); });
   addEventListener("online", () => woke());
   const meKey = () => `${prefix}me-${S.code}`, stKey = () => `${prefix}state-${S.code}`;
@@ -219,7 +222,7 @@ export function createRoom(cfg) {
   setInterval(() => {
     if (!BUS) return;
     const now = Date.now();
-    if (now - tickAt > 4000) woke();   // timers were frozen: the page slept without a visibility event
+    if (now - tickAt > 4000) woke(now - tickAt);   // timers were frozen: the page slept without a visibility event
     tickAt = now;
     if (H && holding()) return;          // just woke while running the table: wait to hear whether someone took over
     if (H && rearm) {                    // nobody took over: carry on running the table, with a little grace on the turn clock

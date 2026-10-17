@@ -295,6 +295,10 @@ td:first-child,th:first-child{text-align:left}
 .sndrow{padding:4px 2px 10px;font-size:14px}
 .sheetbody .sndrow{border-bottom:1px solid var(--line);margin-bottom:12px}
 .iabhint{background:#3a2a10;border:1px solid #c9a24a;color:#fbe7b5;border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.35;margin-bottom:12px}
+
+/* no text selection / copy menu from long presses on the game table; Rules text and the share link stay selectable */
+#app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#app .sheetbody,#app input,#app #link,#app code{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 </style>
 </head>
 <body>
