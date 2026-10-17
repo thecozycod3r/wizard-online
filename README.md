@@ -19,3 +19,4 @@ Tests (serve this folder with `python3 -m http.server 8765` first):
 - `python3 shared/test/timer.py <game> [url]` — turn timer + takeover mid-countdown
 - `python3 shared/test/edge.py <game> [url]` — 16 edge cases
 - `python3 shared/test/fx.py <game> [url]` — animation probe: every effect a full game should show
+- `python3 shared/test/leave.py <game> [url]` — a player leaves mid-game (bot takes the seat), the host leaves, the player rejoins
