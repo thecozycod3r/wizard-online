@@ -4,6 +4,7 @@
 //   bus.on("state" | "hello" | "act" | "err", payload => …)
 //   bus.send(event, payload)        bus.track({ pid })        bus.onPresence(setOfPids => …)
 //   bus.onStatus(ok => …)           true = connected, false = connection lost (auto-reconnects)
+//   bus.revive(hard)                after the phone wakes up: reconnect now instead of waiting for the next heartbeat
 
 import { CONFIG } from "./config.js";
 
@@ -38,8 +39,9 @@ export async function openBus(code, prefix = "g4f-") {
   const ch = sb.channel(prefix + code, {
     config: { broadcast: { self: false, ack: false }, presence: { key: Math.random().toString(36).slice(2, 12) } },
   });
+  const setOk = now => { if (now !== ok) { ok = now; statusFns.forEach(f => f(ok)); } };
   for (const ev of ["state", "hello", "act", "err", "claim"]) {
-    ch.on("broadcast", { event: ev }, ({ payload }) => (handlers[ev] || []).forEach(f => { try { f(payload); } catch (e) { console.error(e); } }));
+    ch.on("broadcast", { event: ev }, ({ payload }) => { setOk(true); (handlers[ev] || []).forEach(f => { try { f(payload); } catch (e) { console.error(e); } }); });
   }
   const online = () => new Set(Object.values(ch.presenceState()).flat().map(p => p.pid).filter(Boolean));
   ch.on("presence", { event: "sync" }, () => { const s = online(); presenceFns.forEach(f => f(s)); });
@@ -52,8 +54,10 @@ export async function openBus(code, prefix = "g4f-") {
       if (now !== ok && (now || ["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status))) { ok = now; statusFns.forEach(f => f(ok)); }
     });
   });
-  addEventListener("offline", () => { if (ok) { ok = false; statusFns.forEach(f => f(false)); } });
+  addEventListener("offline", () => setOk(false));
   await ready;
+  // The subscribe callback doesn't always fire again after a blip, so check the real socket + channel state.
+  setInterval(() => { try { setOk(navigator.onLine !== false && sb.realtime.isConnected() && ch.state === "joined"); } catch { /* keep last */ } }, 2000);
   return {
     on: (ev, f) => (handlers[ev] ||= []).push(f),
     send: (ev, payload) => ch.send({ type: "broadcast", event: ev, payload }).catch(() => {}),
@@ -61,5 +65,13 @@ export async function openBus(code, prefix = "g4f-") {
     onPresence: f => presenceFns.push(f),
     onStatus: f => statusFns.push(f),
     connected: () => ok,
+    // After the phone wakes: reconnect a socket that died while asleep (hard = drop a socket that only looks open).
+    revive(hard) {
+      const rt = sb.realtime;
+      try {
+        if (hard && rt.isConnected()) { rt.disconnect(); setTimeout(() => rt.connect(), 150); }
+        else if (!rt.isConnected()) rt.connect();
+      } catch { /* the client keeps retrying by itself */ }
+    },
   };
 }

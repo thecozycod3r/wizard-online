@@ -27,6 +27,23 @@ export function createRoom(cfg) {
   const S = { bots: [], left: false, mode: "landing", code: new URLSearchParams(location.search).get("g"), me: null, lobby: null, view: null, online: {}, status: "", error: "", net: true, isHost: false };
   let H = null, BUS = null, ME = null, last = null, lastAt = 0, pending = null, wasSeated = false, onlineSet = new Set(), timer = null;
   let clockSeen = null, clockAt = 0, lastNote = null, botTimer = null;
+  // Phones pause pages in the background (screen lock, switching apps). On waking, everything this device knows is stale:
+  // it must not take the table over, and if it was running the table it holds off until it hears from the others.
+  let tickAt = Date.now(), wokeAt = 0, heardAt = 0, reviveT = null, rearm = false;
+  const heard = () => { heardAt = Date.now(); };
+  const holding = () => wokeAt && heardAt < wokeAt && Date.now() - wokeAt < 5000;
+  function woke() {
+    wokeAt = Date.now(); lastAt = wokeAt; clockAt = wokeAt;
+    if (!BUS) return;
+    if (H) { clearTimeout(timer); clearTimeout(botTimer); rearm = true; }
+    BUS.revive(false);
+    if (!H && ME) BUS.send("hello", { token: ME.token, name: ME.name });
+    clearTimeout(reviveT);
+    reviveT = setTimeout(() => { if (heardAt < wokeAt) { BUS.revive(true); if (!H && ME) setTimeout(() => BUS.send("hello", { token: ME.token, name: ME.name }), 1500); } }, 2500);
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") woke(); });
+  addEventListener("pageshow", e => { if (e.persisted) woke(); });
+  addEventListener("online", () => woke());
   const meKey = () => `${prefix}me-${S.code}`, stKey = () => `${prefix}state-${S.code}`;
   const isOnline = pid => (pid === S.me ? S.net : onlineSet.has(pid));
   const seat = (st, pid) => st.players.findIndex(p => p.id === pid);
@@ -115,6 +132,7 @@ export function createRoom(cfg) {
 
   // ------------------------------------------------ messages
   function onHello(m) {
+    heard();
     if (!H || !m?.token) return;
     const name = String(m.name || "").trim().slice(0, 18) || "Player";
     let p = H.players.find(p => p.token === m.token);
@@ -135,11 +153,13 @@ export function createRoom(cfg) {
     if (p && m.token) { p.token = String(m.token).slice(0, 40); H.bots = (H.bots || []).filter(x => x !== p.id); broadcast(); }
   }
   function onAct(m) {
+    heard();
     const p = H?.players.find(p => p.token === m?.token);
     if (p) applyAct(p.id, m.a, m.retry);
   }
   function onState(st) {
     if (!st || st.code !== S.code) return;
+    heard();
     if (H && st.hostPid !== H.me) {
       if (st.epoch > H.epoch || (st.epoch === H.epoch && seat(st, st.hostPid) < seat(st, H.me))) { H = null; clearTimeout(timer); toast("Back online. Another player kept the game going."); }
       else return;
@@ -185,7 +205,7 @@ export function createRoom(cfg) {
     BUS = await openBus(S.code, prefix);
     BUS.on("state", onState); BUS.on("hello", onHello); BUS.on("act", onAct); BUS.on("err", onErr); BUS.on("claim", onClaim);
     BUS.onPresence(set => {
-      onlineSet = set;
+      heard(); onlineSet = set;
       if (!last) return;
       S.online = Object.fromEntries(last.players.map(p => [p.id, isOnline(p.id)]));
       S.lobby?.players.forEach(p => (p.online = isOnline(p.id)));
@@ -199,9 +219,18 @@ export function createRoom(cfg) {
   setInterval(() => {
     if (!BUS) return;
     const now = Date.now();
+    if (now - tickAt > 4000) woke();   // timers were frozen: the page slept without a visibility event
+    tickAt = now;
+    if (H && holding()) return;          // just woke while running the table: wait to hear whether someone took over
+    if (H && rearm) {                    // nobody took over: carry on running the table, with a little grace on the turn clock
+      rearm = false;
+      if (H.clock) H.clock.deadline = Math.max(H.clock.deadline, now + 5000);
+      schedule(); broadcast(false);
+    }
     if (H) { if (H.clock && now >= H.clock.deadline && H.G) expire(); if (S.net && H) BUS.send("state", snap()); return; }
     if (pending && now - pending.at > 2500 && pending.tries < 4) { pending.tries++; pending.at = now; BUS.send("act", { token: ME.token, a: pending.a, retry: true }); }
     if (!last || !S.me || !S.net) return;
+    if (wokeAt && heardAt < wokeAt) return;   // asleep until just now: our picture of the table is stale, never take over on it
     const order = last.players.filter(p => p.id !== last.hostPid && isOnline(p.id)).map(p => p.id);
     const rank = order.indexOf(S.me);
     if (rank >= 0 && now - lastAt > 7000 + rank * 3500) {

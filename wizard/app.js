@@ -1,5 +1,7 @@
 import * as E from "./engine.js";
 import { createRoom } from "../shared/room.js";
+import { preload } from "../shared/preload.js";
+import { alerts, soundRow, inAppHint } from "../shared/alert.js";
 import { hscroll } from "../shared/hscroll.js";
 import { SPECIAL_CARDS } from "./specials.js";
 import { RULES_HTML } from "./rules-content.js";
@@ -42,7 +44,7 @@ function onNewView(prev, v) {
   queueFx(prev, v);
   const mineNow = v.waiting.includes(S.me) && !["trickShow", "roundEnd", "gameOver"].includes(v.phase);
   const minePrev = prev ? prev.waiting.includes(S.me) && prev.phase === v.phase : false;
-  if (mineNow && !minePrev) navigator.vibrate?.([18, 40, 18]);
+  if (mineNow && !minePrev) alerts.yourTurn();
   document.title = mineNow ? "● Your turn · Wizard" : "Wizard Online";
   // Clear selections that no longer apply.
   if (!v.hand.includes(S.ui.sel)) S.ui.sel = null;
@@ -86,7 +88,7 @@ function render() {
   $app.innerHTML = html;
   if (scroll) { const b = document.querySelector(".sheetbody"); if (b) b.scrollTop = scroll; }
   HS.restore(hs);
-  if (S.mode === "game") sizeHand();
+  if (S.mode === "game") { sizeHand(); fitCenter(); preloadCards(); }
   if (S.fxQueue.length) requestAnimationFrame(runFx);
 }
 
@@ -141,7 +143,7 @@ const guideBtn = (cls = "ghost small") => `<button class="btn ${cls}" data-act="
 
 function viewLanding() {
   const name = esc(room.lastName() || LS.get("wiz-name") || "");
-  return `<div class="page">
+  return `<div class="page">${inAppHint()}
     <div class="hero">
       <div class="fan">${["blue-wizard", "sp-dragon", "sp-witch", "red-jester"].map((id, i) => `<img src="cards/${id}.webp" alt="" style="transform:rotate(${(i - 1.5) * 9}deg) translateY(${Math.abs(i - 1.5) * 8}px)">`).join("")}</div>
       <div class="eyebrow">30th-anniversary rules · all 9 special cards</div>
@@ -160,7 +162,7 @@ function viewLanding() {
 function viewJoin() {
   const name = esc(room.lastName() || LS.get("wiz-name") || "");
   const busy = S.mode === "connecting";
-  return `<div class="page">
+  return `<div class="page">${inAppHint()}
     <div class="hero">
       <div class="fan">${["green-wizard", "sp-fairy", "sp-vampire"].map((id, i) => `<img src="cards/${id}.webp" alt="" style="transform:rotate(${(i - 1) * 10}deg) translateY(${Math.abs(i - 1) * 8}px)">`).join("")}</div>
       <div class="eyebrow">You're invited to a game of</div>
@@ -236,6 +238,7 @@ function viewLobby() {
           ${[3, 5, 8, 10].filter(n => n < maxR).map(n => `<option value="${n}" ${st.rounds === n ? "selected" : ""}>${n} rounds</option>`).join("")}
         </select></div>
     </section>
+    ${soundRow()}
     <div class="row" style="justify-content:center">
       ${isHost ? `<button class="btn" data-act="start" ${L.players.length < 3 ? "disabled" : ""}>Start game</button>` : `<span class="muted">Waiting for the host to start…</span>`}
       ${guideBtn()}
@@ -287,7 +290,7 @@ function viewGame() {
   const trumpChip = `<span class="rnd tr"><small>TRUMP</small><span style="color:${v.trump ? SUIT_HEX[v.trump] : "var(--ink-dim)"}">${v.trump ? E.SUIT_NAME[v.trump] : ["werewolf", "trump"].includes(v.phase) ? "…" : "None"}</span></span>`;
   const bar = `<div class="bar"><div class="info"><span class="rnd"><small>ROUND</small>${v.round}/${v.totalRounds}</span>
       <span class="trumpbox">${v.indicator ? `<button class="chipbtn" style="padding:0;border:0" data-act="zoom" data-id="${v.indicator}" aria-label="Trump card">${img(v.indicator)}</button>` : ""}${trumpChip}</span></div>
-      ${S.net ? "" : `<span class="badge off" style="font-size:10px;padding:4px 7px">OFFLINE</span>`}<button class="btn ghost small" data-act="leave-ask" aria-label="Leave the game"><span aria-hidden="true">🚪</span><span class="lvt">Leave</span></button><button class="btn ghost small" data-act="scores">Scores</button>${guideBtn("small")}</div>`;
+      ${S.net ? "" : `<span class="badge off" style="font-size:10px;padding:4px 7px">OFFLINE</span>`}<button class="btn ghost small" data-act="leave-ask" aria-label="Leave the game"><span aria-hidden="true">🚪</span><span class="lvt">Leave</span></button><button class="btn ghost small" data-act="scores" aria-label="Scores"><span class="sci" aria-hidden="true">🏆</span><span class="sct">Scores</span></button>${guideBtn("small")}</div>`;
 
   // Centre: current or just-finished trick.
   let plays = [], winner = null, showing = false;
@@ -403,7 +406,7 @@ function promptHtml() {
 function viewOverlay() {
   const o = S.ui.overlay;
   let html = "";
-  if (o === "guide") html = sheet("Rules", guideTabs() + `<div class="sheetbody">${guideBody()}</div>`);
+  if (o === "guide") html = sheet("Rules", guideTabs() + `<div class="sheetbody">${soundRow()}${guideBody()}</div>`);
   if (o === "scores") html = sheet("Scores", `<div class="sheetbody">${scoreTable()}</div>`);
   if (o === "leave") html = sheet("Leave the game?", `<div class="sheetbody"><p style="margin-top:0">A bot will play your seat for the rest of this game, so everyone else can finish. Your score stays on the board. Changed your mind? Open the same link and tap <b>This is me</b> to take your seat back.</p><div class="row" style="justify-content:center;margin-top:14px"><button class="btn" data-act="leave">Leave the game</button><button class="btn ghost" data-act="close">Stay</button></div></div>`);
   if (o === "round" && S.view?.phase === "roundEnd") html = sheet(`Round ${S.view.round} results`, `<div class="sheetbody">${roundTable()}</div>`, roundFoot());
@@ -485,6 +488,16 @@ function podium() {
 const overFoot = () => `<div class="row" style="justify-content:center;padding:6px 16px 16px">${room.isHost ? `<button class="btn" data-act="again">Play again</button>` : `<span class="muted">The host can start a new game.</span>`}</div>`;
 
 // ---------------------------------------------------------------- hand sizing
+// Small screens / large text: if the middle doesn't fit, drop the big trump card (the top bar shows it too),
+// then make sure the bid / trump buttons are in view rather than scrolled off.
+function fitCenter() {
+  const c = document.querySelector(".center"); if (!c) return;
+  c.classList.remove("tight", "tighter");
+  if (c.scrollHeight > c.clientHeight + 2) c.classList.add("tight");
+  if (c.scrollHeight > c.clientHeight + 2) c.classList.add("tighter");
+  const btns = c.querySelector(".prompt .btns");
+  if (btns && c.scrollHeight > c.clientHeight + 2) btns.scrollIntoView({ block: "end" });
+}
 function sizeHand() {
   const hand = document.getElementById("hand");
   if (!hand) return;
@@ -602,6 +615,7 @@ $app.addEventListener("click", e => {
   if (!el) return;
   const a = el.dataset.act, v = S.view;
   switch (a) {
+    case "sound": alerts.toggle(); break;
     case "guide": S.ui.overlay = "guide"; break;
     case "scores": S.ui.overlay = "scores"; break;
     case "leave-ask": S.ui.overlay = "leave"; break;
@@ -681,7 +695,7 @@ function preloadCards() {
   const ids = [];
   for (const s of E.SUITS) { for (let r = 1; r <= 13; r++) ids.push(`${s}-${String(r).padStart(2, "0")}`); ids.push(`${s}-wizard`, `${s}-jester`); }
   E.SPECIALS.forEach(k => ids.push("sp-" + k));
-  ids.forEach((id, i) => setTimeout(() => { const im = new Image(); im.src = `cards/${id}${hi}.webp`; }, i * 15));
+  preload(ids.map(id => `cards/${id}${hi}.webp`));
 }
 
 // Turn clock: count down on screen between state updates.
@@ -693,7 +707,7 @@ setInterval(() => {
     const sec = Math.ceil(c.left / 1000);
     el.textContent = sec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}` : `${sec}s`;
     el.classList.toggle("low", sec <= 10);
-    if (el.dataset.tmr === S.me && sec <= 10 && buzzed !== c.waiting.join() + Math.floor(c.total)) { buzzed = c.waiting.join() + Math.floor(c.total); navigator.vibrate?.(60); }
+    if (el.dataset.tmr === S.me && sec <= 10 && buzzed !== c.waiting.join() + Math.floor(c.total)) { buzzed = c.waiting.join() + Math.floor(c.total); alerts.hurry(); }
   }
 }, 250);
 

@@ -28,6 +28,11 @@ SEATS = [("Dhruv", "iPhone SE", "webkit"), ("Anya", "Pixel 7", "chromium"), ("He
          ("Kofi", "iPhone 15 Pro Max", "webkit")]
 SEATS = SEATS[:7 if GAME == "marvels" else 6]
 results, issues = [], {}
+import os
+SCALE = float(os.environ.get("SCALE", "1"))   # e.g. SCALE=1.3: phone set to large text (Android Chrome scales page text)
+BIG = """s => { const els = [...document.querySelectorAll('body *')].filter(e => !e.closest('svg'));
+  const fs = els.map(e => parseFloat(getComputedStyle(e).fontSize));
+  els.forEach((e, i) => e.style.setProperty('font-size', (fs[i] * s) + 'px', 'important')); }"""
 
 def check(name, ok, detail=""):
     results.append(ok); print(("PASS " if ok else "FAIL ") + name + (f" — {detail}" if detail else ""), flush=True)
@@ -65,8 +70,9 @@ PROBE = """mine => {
     if (n.parentElement.closest('.fx-welcome, svg, .dragghost')) continue;
     const r = n.parentElement.getBoundingClientRect(); if (!inView(r)) continue;
     const fs = parseFloat(getComputedStyle(n.parentElement).fontSize); if (fs < 10) tiny.add(t.slice(0, 16) + ' ' + fs + 'px'); }
+  const hidden = [...document.querySelectorAll('.prompt .btns button, .zones .zone')].filter(e => vis(e) && !clip(e)).map(name);
   const m = document.querySelector(mine), mr = m && m.getBoundingClientRect();
-  return { over: document.documentElement.scrollWidth > innerWidth + 1, small: [...new Set(small)], covered: [...new Set(covered)], tiny: [...tiny],
+  return { over: document.documentElement.scrollWidth > innerWidth + 1, small: [...new Set(small)], hidden, covered: [...new Set(covered)], tiny: [...tiny],
     mineOk: !m || mr.height < 40 || (mr.top < innerHeight - 30 && mr.bottom > 30), mineBox: mr && [Math.round(mr.top), Math.round(mr.bottom), innerHeight] };
 }"""
 
@@ -79,12 +85,13 @@ def probe(name, dev, page, moment):
     page.wait_for_timeout(500)
     r = page.evaluate(PROBE, MINE)
     tag = f"{dev}/{moment}"
-    page.screenshot(path=SH + f"{GAME}-{dev.replace(' ', '_')}-{moment}.png")
+    page.screenshot(path=SH + f"{GAME}-{dev.replace(' ', '_')}-{moment}{'-big' if SCALE != 1 else ''}.png")
     check(f"{tag}: no sideways scroll", not r["over"])
     check(f"{tag}: tap targets >= 32px", not r["small"], "; ".join(r["small"][:6]))
     check(f"{tag}: nothing tappable hidden", not r["covered"], "; ".join(r["covered"][:4]))
-    check(f"{tag}: no text under 10px", not r["tiny"], "; ".join(r["tiny"][:6]))
+    if SCALE == 1: check(f"{tag}: no text under 10px", not r["tiny"], "; ".join(r["tiny"][:6]))
     if moment != "over": check(f"{tag}: own area on screen", r["mineOk"], str(r["mineBox"]))
+    check(f"{tag}: action buttons visible", not r["hidden"], "; ".join(r["hidden"][:4]))
 
 with sync_playwright() as pw:
     eng = {"webkit": pw.webkit.launch(), "chromium": pw.chromium.launch(channel="chrome")}
@@ -92,6 +99,9 @@ with sync_playwright() as pw:
     for n, dev, e in SEATS:
         c = eng[e].new_context(**device(pw, dev)); pg[n] = c.new_page()
         pg[n].on("pageerror", lambda x, n=n: errs.append((n, str(x))))
+        if SCALE != 1:   # the phone's own large-text setting, applied before layout like the real thing
+            pct = int(SCALE * 100)
+            pg[n].add_init_script(f"document.addEventListener('DOMContentLoaded', () => {{ const s = document.createElement('style'); s.textContent = 'html{{-webkit-text-size-adjust:{pct}%!important;text-size-adjust:{pct}%!important}}'; document.head.append(s); }})")
     names = [s[0] for s in SEATS]; DEV = {s[0]: s[1] for s in SEATS}
     h = pg[names[0]]
     h.goto(BASE); h.fill("#nm", names[0]); h.click("text=Start a game"); h.wait_for_selector("#link")

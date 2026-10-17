@@ -23,3 +23,6 @@ Tests (serve this folder with `python3 -m http.server 8765` first):
 
 - `python3 shared/test/swipe.py <game> [url]` — phone swipes on every side-scrolling row (starting on a card) while moves land: the row follows the finger, stays put through updates, never picks a card up.
 - `python3 shared/test/ergo.py <game> [url]` — full table, every seat on a different screen (SE, Pixel, phone sideways, iPad, laptop, S9+, Pro Max): no sideways scroll, tap targets ≥32px, no text <10px, nothing tappable covered, own area on screen. Screenshots to the scratchpad.
+- `python3 shared/test/resume.py <game> [url]` — a phone goes to the background (page frozen, 40 s) mid-game, as a guest and as the device running the table: it catches up, the game never goes backwards, the table never splits. `QUIET=1` sleeps with no offline/visibility events.
+- `python3 shared/test/slow.py <game> [url]` — joining on slow 4G (1.6 Mbps, 150 ms): join form, table and on-screen pictures timings, plus a 5 s signal drop.
+- `SCALE=1.3 python3 shared/test/ergo.py <game>` — the ergonomics sweep with the phone's large-text setting.

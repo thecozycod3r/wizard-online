@@ -1,6 +1,8 @@
 import * as E from "./engine.js";
 import { DATA } from "./data.js";
 import { createRoom } from "../shared/room.js";
+import { preload } from "../shared/preload.js";
+import { alerts, soundRow, inAppHint } from "../shared/alert.js";
 import { hscroll } from "../shared/hscroll.js";
 import { RULES, setupTable } from "./rules.js";
 
@@ -65,7 +67,7 @@ function onUpdate(prev) {
     if (prev && v.final && !prev.final) setTimeout(() => banner(null, "Final round!", "Someone reached 15 points. Everyone finishes this round."), 900);
     const mineNow = v.waiting.includes(S.me) && v.phase !== "gameOver";
     const minePrev = prev ? prev.waiting.includes(S.me) && prev.phase === v.phase && prev.turn === v.turn : false;
-    if (mineNow && !minePrev) navigator.vibrate?.([18, 40, 18]);
+    if (mineNow && !minePrev) alerts.yourTurn();
     document.title = mineNow ? "● Your turn · Splendor" : "Splendor · Games4free";
     const wk = "lode-welcome-" + v.gameId;
     if (v.gameId && v.round === 1 && !LS.get(wk)) { LS.set(wk, 1); setTimeout(welcome, 200); }
@@ -188,7 +190,7 @@ const rulesBtn = (cls = "ghost small") => `<button class="btn ${cls}" data-act="
 const fan = ids => `<div class="fan">${ids.map((id, i) => `<img src="art/${id}.webp" alt="" style="transform:rotate(${(i - (ids.length - 1) / 2) * 10}deg) translateY(${Math.abs(i - (ids.length - 1) / 2) * 8}px)">`).join("")}</div>`;
 
 function viewLanding() {
-  return `<div class="page"><div class="hero">${fan(["sil11", "nob06", "cin32", "iro34"])}
+  return `<div class="page">${inAppHint()}<div class="hero">${fan(["sil11", "nob06", "cin32", "iro34"])}
       <div class="eyebrow">Games4free · Ore edition</div><h1 class="title">Splendor</h1>
       <p class="muted" style="max-width:40ch;margin:0">Gather ores, build mines and guilds, and win the favour of nobles. 2–6 players; 5–6 play the twin-deck variant.</p></div>
     <form class="panel" data-form="create"><label for="nm" class="eyebrow">Your name</label>
@@ -199,7 +201,7 @@ function viewLanding() {
 
 function viewJoin() {
   const busy = S.mode === "connecting";
-  return `<div class="page"><div class="hero">${fan(["tok-silver", "tok-gold", "tok-cinnabar"])}
+  return `<div class="page">${inAppHint()}<div class="hero">${fan(["tok-silver", "tok-gold", "tok-cinnabar"])}
       <div class="eyebrow">You're invited to a game of</div><h1 class="title">Splendor</h1></div>
     <form class="panel" data-form="join"><label for="nm" class="eyebrow">Your name</label>
       <div class="row"><input id="nm" type="text" maxlength="18" autocomplete="nickname" placeholder="Your name" value="${esc(room.lastName())}" required ${busy ? "disabled" : ""}>
@@ -240,6 +242,7 @@ function viewLobby() {
       <dt>Face-up cards</dt><dd>${st.display[1]} / ${st.display[2]} / ${st.display[3]}</dd><dt>Decks</dt><dd>${st.twin ? "Two full sets (180 cards)" : "One set (90 cards)"}</dd><dt>Win</dt><dd>15 points, then finish the round</dd></dl>
       <div class="row" style="justify-content:space-between"><span>Turn timer</span><span class="seg">${[[30, "30 s"], [60, "1 min"], [120, "2 min"]].map(([v, l]) => `<button aria-pressed="${(L.settings.timer || 60) === v}" ${host ? `data-act="timer" data-v="${v}"` : "disabled"}>${l}</button>`).join("")}</span></div>
       <p class="muted" style="margin:0;font-size:14px">When time runs out, the game makes the best move it can find for that player.</p></section>
+    ${soundRow()}
     <div class="row" style="justify-content:center">${host ? `<button class="btn" data-act="start" ${n < 2 ? "disabled" : ""}>Start game</button>` : `<span class="muted">Waiting for the host to start…</span>`}${rulesBtn()}</div>
     <div class="err" style="text-align:center">${esc(S.error || S.status)}</div></div>`;
 }
@@ -324,7 +327,7 @@ function viewOverlay() {
   if (forced && v.phase === "discard") h = sheet("Too many tokens", `<div class="sheetbody">${discardBody()}</div>`, "", true);
   else if (forced && v.phase === "noble") h = sheet("A noble visits", `<div class="sheetbody">${nobleChoice()}</div>`, "", true);
   else if (ui.overlay === "leave" && v) h = sheet("Leave the game?", `<div class="sheetbody"><p style="margin-top:0">A bot will play your seat for the rest of this game, so everyone else can finish. Your score stays on the board. Changed your mind? Open the same link and tap <b>This is me</b> to take your seat back.</p><div class="row" style="justify-content:center;margin-top:14px"><button class="btn" data-act="leave">Leave the game</button><button class="btn ghost" data-act="close">Stay</button></div></div>`);
-  else if (ui.overlay === "rules") h = sheet("Rules", rulesTabs() + `<div class="sheetbody guide">${rulesBody()}</div>`);
+  else if (ui.overlay === "rules") h = sheet("Rules", rulesTabs() + `<div class="sheetbody guide">${soundRow()}${rulesBody()}</div>`);
   else if (ui.overlay === "card" && v) h = sheet(ui.from === "deck" ? `Level ${ui.card} deck` : "Card", `<div class="sheetbody">${cardDetail()}</div>`);
   else if (ui.overlay === "player" && v) h = sheet(nameOf(ui.player) === "You" ? "Your ledger" : `${nameOf(ui.player)}'s ledger`, `<div class="sheetbody">${playerDetail()}</div>`);
   else if (ui.overlay === "noble" && v) h = sheet("Noble", `<div class="sheetbody">${nobleDetail()}</div>`);
@@ -445,6 +448,7 @@ $app.addEventListener("click", e => {
   if (!el) return;
   const a = el.dataset.act, v = V();
   switch (a) {
+    case "sound": alerts.toggle(); break;
     case "rules": ui.overlay = "rules"; break;
     case "scores": ui.overlay = "scores"; break;
     case "leave-ask": ui.overlay = "leave"; break;
@@ -568,7 +572,7 @@ setInterval(() => {
     const sec = Math.ceil(c.left / 1000);
     el.textContent = sec >= 60 ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}` : `${sec}s`;
     el.classList.toggle("low", sec <= 10);
-    if (el.dataset.tmr === S.me && sec <= 10 && buzzed !== V()?.seq) { buzzed = V()?.seq; navigator.vibrate?.(60); }
+    if (el.dataset.tmr === S.me && sec <= 10 && buzzed !== V()?.seq) { buzzed = V()?.seq; alerts.hurry(); }
   }
 }, 250);
 
@@ -576,12 +580,11 @@ setInterval(() => {
 async function wake() { try { await navigator.wakeLock?.request("screen"); } catch { /* not allowed */ } }
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && S.mode === "game" && wake());
 
-// preload all art so the market never shows blank cards
-setTimeout(() => {
+// Fetch the rest of the art in the background so the market never shows blank cards.
+{
   const hi = (devicePixelRatio || 1) > 1 ? "@2x" : "";
-  [...DATA.cards.map(c => c.id), ...DATA.nobles.map(n => n.id), ...ALL.map(o => "tok-" + o), "back1", "back2", "back3"]
-    .forEach((id, i) => setTimeout(() => { const im = new Image(); im.src = `art/${id}${hi}.webp`; }, i * 12));
-}, 1500);
+  preload([...ALL.map(o => "tok-" + o), "back1", "back2", "back3", ...DATA.cards.map(c => c.id), ...DATA.nobles.map(n => n.id)].map(id => `art/${id}${hi}.webp`));
+}
 
 // ---------------------------------------------------------------- boot
 (function boot() {
