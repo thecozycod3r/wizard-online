@@ -15,6 +15,7 @@
 // game can finish. The player can take the seat back from any device with "This is me".
 
 import { openBus, newCode } from "./net.js";
+import { debugShow } from "./debug.js";
 
 const LS = {
   get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -199,9 +200,11 @@ export function createRoom(cfg) {
       else S.mode = "connecting";
       return onUpdate(prev);
     }
-    if (st.G) { S.view = engine.viewFor(st.G, S.me); S.mode = "game"; }
-    else { S.view = null; S.mode = "lobby"; }
-    onUpdate(prev);
+    try {
+      if (st.G) { S.view = engine.viewFor(st.G, S.me); S.mode = "game"; }
+      else { S.view = null; S.mode = "lobby"; }
+      onUpdate(prev);
+    } catch (e) { debugShow("apply: " + (e.stack || e)); throw e; }
   }
 
   async function connect() {

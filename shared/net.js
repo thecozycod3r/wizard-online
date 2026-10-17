@@ -7,6 +7,7 @@
 //   bus.revive(hard)                after the phone wakes up: reconnect now instead of waiting for the next heartbeat
 
 import { CONFIG } from "./config.js";
+import { debugShow } from "./debug.js";
 
 // Channel names are "<prefix><code>"; each game passes its own prefix.
 
@@ -41,7 +42,7 @@ export async function openBus(code, prefix = "g4f-") {
   });
   const setOk = now => { if (now !== ok) { ok = now; statusFns.forEach(f => f(ok)); } };
   for (const ev of ["state", "hello", "act", "err", "claim"]) {
-    ch.on("broadcast", { event: ev }, ({ payload }) => { setOk(true); (handlers[ev] || []).forEach(f => { try { f(payload); } catch (e) { console.error(e); } }); });
+    ch.on("broadcast", { event: ev }, ({ payload }) => { setOk(true); (handlers[ev] || []).forEach(f => { try { f(payload); } catch (e) { console.error(e); debugShow(ev + ": " + (e.stack || e)); } }); });
   }
   const online = () => new Set(Object.values(ch.presenceState()).flat().map(p => p.pid).filter(Boolean));
   ch.on("presence", { event: "sync" }, () => { const s = online(); presenceFns.forEach(f => f(s)); });
