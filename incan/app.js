@@ -55,13 +55,68 @@ function onUpdate(prev) {
     if (v.gameId && v.round === 1 && !LS.get(wk)) { LS.set(wk, 1); setTimeout(welcome, 200); }
   }
   render();
+  if (prev && v?.last && v.seq !== prev.seq) { const last = v.last, wait = fxHold; requestAnimationFrame(() => setTimeout(() => motion(last, v, prev), wait)); }
+}
+
+// ---------------------------------------------------------------- motion on the table
+const rectOf = sel => document.querySelector(sel)?.getBoundingClientRect();
+const chip = pid => rectOf(`.ex[data-pid="${pid}"]`);
+function fly(html, from, to, size = 22, delay = 0) {
+  if (!from || !to) return;
+  const d = document.createElement("div"); d.className = "fly"; d.innerHTML = html;
+  const x0 = from.left + from.width / 2 - size / 2 + (Math.random() - .5) * 14, y0 = from.top + from.height / 2 - size / 2;
+  d.style.cssText = `left:${x0}px;top:${y0}px;width:${size}px;height:${size}px;opacity:0`;
+  document.body.append(d);
+  setTimeout(() => {
+    d.style.opacity = "1";
+    d.style.transform = `translate(${to.left + to.width / 2 - size / 2 - x0}px,${to.top + to.height / 2 - size / 2 - y0}px) scale(.8)`;
+  }, 30 + delay);
+  setTimeout(() => { d.style.opacity = "0"; }, 650 + delay);
+  setTimeout(() => d.remove(), 900 + delay);
+}
+function flash(sel, cls, delay = 0) {
+  setTimeout(() => { const el = document.querySelector(sel); if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }, delay);
+}
+function badge(pid, icon, delay = 0) {
+  const r = chip(pid); if (!r) return;
+  setTimeout(() => {
+    const d = document.createElement("div"); d.className = "badgefx"; d.innerHTML = icon;
+    d.style.left = r.left + r.width - 40 + "px"; d.style.top = r.top - 14 + "px";
+    document.body.append(d); setTimeout(() => d.remove(), 1300);
+  }, delay);
+}
+function motion(last, v) {
+  if (S.mode !== "game") return;
+  const path = rectOf("#path"), gemIcon = GEM.turq;
+  // everyone's Torch / Camp pops up over their name
+  if (last.kind === "turn") Object.entries(last.choices).forEach(([pid, go], i) => badge(pid, go ? TORCH : CAMP, i * 60));
+  // campers carry their gems home: from the path to them, then (for me) into my tent
+  for (const [i, pid] of (last.leavers || []).entries()) {
+    const n = Math.min(6, Math.max(1, last.split?.carried?.[pid] || 0));
+    for (let k = 0; k < n; k++) fly(gemIcon, path, chip(pid), 20, 300 + i * 120 + k * 70);
+    flash(`.ex[data-pid="${pid}"]`, "glow", 500 + i * 120);
+    if (pid === S.me) for (let k = 0; k < n; k++) fly(gemIcon, chip(pid), rectOf(".mine"), 20, 900 + k * 70);
+  }
+  for (const a of last.artifacts || []) fly(artifact(a.id), path, chip(last.leavers[0]), 40, 350);
+  // new cards: treasure is shared out — gems fly from the card to everyone inside
+  let t = (last.leavers || []).length ? 900 : 200;
+  for (const c of last.cards || []) {
+    const card = E.cardOf(c.id), from = rectOf(`.pc[data-id="${c.id}"]`);
+    if (card.kind === "treasure" && c.each) {
+      c.to.forEach((pid, i) => { for (let k = 0; k < Math.min(4, c.each); k++) fly(gemIcon, from, chip(pid), 18, t + i * 90 + k * 60); flash(`.ex[data-pid="${pid}"] .carry`, "pop", t + 700 + i * 90); });
+    }
+    if (card.kind === "hazard" && !c.disaster) { flash(`.hz [data-hz="${card.hazard}"]`, "pop", t); flash(`.hz [data-hz="${card.hazard}"]`, "glow", t); }
+    if (card.kind === "artifact") flash(`.pc[data-id="${c.id}"]`, "glow", t);
+    if (c.disaster) Object.keys(c.disaster.lost).forEach(pid => flash(`.ex[data-pid="${pid}"]`, "hurt", 0));
+    t += 450;
+  }
 }
 
 function cardHtml(id, left = 0, extra = "") {
   const c = E.cardOf(id);
-  if (c.kind === "treasure") return `<div class="pc t ${extra}"><span class="v">${c.value}</span>${GEM.turq}<div class="left">${left ? pile(left, 6) : ""}</div></div>`;
-  if (c.kind === "hazard") return `<div class="pc h ${extra}">${hazard(c.hazard)}</div>`;
-  return `<div class="pc a ${extra}">${artifact(id)}</div>`;
+  if (c.kind === "treasure") return `<div class="pc t ${extra}" data-id="${id}"><span class="v">${c.value}</span>${GEM.turq}<div class="left">${left ? pile(left, 6) : ""}</div></div>`;
+  if (c.kind === "hazard") return `<div class="pc h ${extra}" data-id="${id}">${hazard(c.hazard)}</div>`;
+  return `<div class="pc a ${extra}" data-id="${id}">${artifact(id)}</div>`;
 }
 
 function effect(last, v, prev) {
@@ -71,7 +126,7 @@ function effect(last, v, prev) {
       <div class="choices">${order.map((pid, i) => `<div class="c" style="animation-delay:${i * .07}s"><div class="i">${last.choices[pid] ? TORCH : CAMP}</div><span>${esc(nameOf(pid))}</span></div>`).join("")}</div>`;
     if (last.split?.each) html += `<div class="l">Each camper also picks up ${last.split.each} from the path</div>`;
     if (last.artifacts?.length) html += `<div class="l">${esc(nameOf(last.leavers[0]))} ${last.leavers[0] === S.me ? "grab" : "grabs"} ${last.artifacts.length === 1 ? "an artifact" : last.artifacts.length + " artifacts"} (+${last.artifacts.reduce((s, a) => s + a.value, 0)})!</div>`;
-    showFx(html, last.leavers.length ? 2400 : 1500);
+    if (last.leavers.length) showFx(html, 2400);
   }
   if (last.kind === "round" && prev) showFx(`<div class="img" style="width:min(30vw,120px)">${TEMPLE}</div><div class="t">Temple ${last.round}</div><div class="l">The ${esc(E.artifactOf(last.artifact).name)} is rumoured to be inside</div>`, 2200);
   for (const c of last.cards || []) {
@@ -82,7 +137,7 @@ function effect(last, v, prev) {
         <div class="l">${Object.keys(c.disaster.lost).length ? `${esc(Object.keys(c.disaster.lost).map(nameOf).join(", "))} flee${lost.length ? " and lose " + lost.map(([p, n]) => `${esc(nameOf(p))} ${n}`).join(", ") : ""}` : "The temple collapses"}</div>`, 3000);
       setTimeout(shake, fxHold - 2600);
     } else if (card.kind === "artifact") showFx(`<div class="bigcard">${cardHtml(c.id)}</div><div class="t">${esc(card.name)}</div><div class="l">An artifact! It goes to whoever leaves alone</div>`, 2000);
-    else if (card.kind === "hazard") showFx(`<div class="bigcard">${cardHtml(c.id)}</div><div class="t">${esc(E.HAZARD_NAME[card.hazard])}</div><div class="l">A warning. Another one and everyone inside flees</div>`, 1700);
+    else if (card.kind === "hazard") toast(`${esc(E.HAZARD_NAME[card.hazard])}! A warning — another one and everyone inside flees.`);
   }
   if (last.end && !last.end.disaster && v.phase !== "gameOver" && last.kind === "turn") showFx(`<div class="t">Everyone's back at camp</div><div class="l">Next temple in a moment…</div>`, 1600);
 }
@@ -219,7 +274,7 @@ function viewLobby() {
 
 function viewGame() {
   const v = V(), P = me(), lead = carrier(v);
-  const hz = E.HAZARDS.map(h => `<div class="h ${v.seen[h] ? "warn" : ""}" title="${E.HAZARD_NAME[h]}">${hazard(h)}<small>${v.seen[h] ? "1 out!" : "safe"}</small>${v.gone[h] ? `<span class="gone">−${v.gone[h]}</span>` : ""}</div>`).join("");
+  const hz = E.HAZARDS.map(h => `<div class="h ${v.seen[h] ? "warn" : ""}" data-hz="${h}" title="${E.HAZARD_NAME[h]}">${hazard(h)}<small>${v.seen[h] ? "1 out!" : "safe"}</small>${v.gone[h] ? `<span class="gone">−${v.gone[h]}</span>` : ""}</div>`).join("");
   const path = `<div class="pc temple">${TEMPLE}</div>` + v.path.map(s => cardHtml(s.id, s.left)).join("");
   const ex = v.players.map((p, i) => {
     const out = !p.inside, bot = S.bots?.includes(p.id), off = !S.online[p.id] && p.id !== S.me;

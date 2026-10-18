@@ -67,7 +67,42 @@ function onUpdate(prev) {
     const wk = "ava-welcome-" + v.gameId;
     if (v.gameId && v.phase === "reveal" && !LS.get(wk)) { LS.set(wk, 1); setTimeout(welcome, 200); }
   }
+  // where the crown was, before the screen changes
+  const oldLead = v && prev && prev.leader !== v.leader && prev.phase !== "reveal" ? document.querySelector(`.knight[data-pid="${prev.leader}"]`)?.getBoundingClientRect() : null;
   render();
+  if (v && prev && v.seq !== prev.seq) { const wait = fxHold; requestAnimationFrame(() => setTimeout(() => motion(v, prev, oldLead), wait)); }
+}
+
+// ---------------------------------------------------------------- motion on the table
+function fly(html, from, to, size = 28, delay = 0) {
+  if (!from || !to) return;
+  const d = document.createElement("div"); d.className = "fly"; d.innerHTML = html;
+  const x0 = from.left + from.width / 2 - size / 2, y0 = from.top + from.height / 2 - size / 2;
+  d.style.cssText = `left:${x0}px;top:${y0}px;width:${size}px;height:${size}px`;
+  document.body.append(d);
+  setTimeout(() => { d.style.transform = `translate(${to.left + to.width / 2 - size / 2 - x0}px,${to.top + to.height / 2 - size / 2 - y0}px) scale(1.1)`; }, 30 + delay);
+  setTimeout(() => d.remove(), 850 + delay);
+}
+function flash(sel, cls, delay = 0) {
+  setTimeout(() => { const el = document.querySelector(sel); if (!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }, delay);
+}
+function motion(v, prev, oldLead) {
+  if (S.mode !== "game") return;
+  // the leader's crown travels to the next leader
+  if (oldLead) {
+    const to = document.querySelector(`.knight[data-pid="${v.leader}"] .crown`) || document.querySelector(`.knight[data-pid="${v.leader}"]`);
+    const toR = to?.getBoundingClientRect();
+    if (toR) { to.style.visibility = "hidden"; fly(CROWN, oldLead, toR, 30); setTimeout(() => { to.style.visibility = ""; flash(`.knight[data-pid="${v.leader}"]`, "glow"); }, 800); }
+  }
+  // a proposed team lights up, one knight at a time
+  if (v.phase === "vote" && prev.phase !== "vote") v.team.forEach((pid, i) => { flash(`.knight[data-pid="${pid}"]`, "pop", i * 120); flash(`.knight[data-pid="${pid}"]`, "glow", i * 120); });
+  // a finished quest drops into the track
+  if (v.results.length > prev.results.length) { const i = v.results.length - 1; flash(`.quests .q:nth-child(${i + 1})`, "pop"); flash(`.quests .q:nth-child(${i + 1})`, "glow"); }
+  // someone readies up / votes / plays a card: their tile nods
+  for (const p of v.players) {
+    const q = prev.players.find(x => x.id === p.id);
+    if (q && ((p.ready && !q.ready) || (p.voted && !q.voted) || (p.played && !q.played))) flash(`.knight[data-pid="${p.id}"] .av`, "pop");
+  }
 }
 
 function effect(last, v) {

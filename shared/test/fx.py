@@ -18,14 +18,14 @@ NEED = {
     "wizard": ["fx-welcome", "crown", "fx-"],
     "lodestone": ["fx-welcome", "crown", "fly", "fx-banner"],
     "marvels": ["fx-welcome", "crown", "fly", "pop", "fx-banner", "battle"],
-    "avalon": ["fx-welcome", "crown", "fx-banner"],
-    "incan": ["fx-welcome", "crown", "fx-banner"],
+    "avalon": ["fx-welcome", "crown", "fx-banner", "fly", "pop", "glow"],
+    "incan": ["fx-welcome", "crown", "fx-banner", "fly", "pop", "glow", "badgefx"],
 }[GAME]
 NAMES = ["Dhruv", "Anya", "Henry"] + (["Freya", "Omar"] if GAME == "avalon" else [])
 WATCH = """() => { window.__fxSeen = {};
-  const note = el => { if (!(el instanceof Element)) return; for (const c of el.classList) if (/^(fx|fly|pop|crown|battle|fx-)/.test(c)) window.__fxSeen[c] = (window.__fxSeen[c] || 0) + 1;
+  const note = el => { if (!(el instanceof Element)) return; for (const c of el.classList) if (/^(fx|fly|pop|crown|battle|fx-|glow|badgefx|hurt)/.test(c)) window.__fxSeen[c] = (window.__fxSeen[c] || 0) + 1;
     el.querySelectorAll?.('.crown,.battle,[class^="fx"]').forEach(x => { for (const c of x.classList) if (/^(fx|crown|battle)/.test(c)) window.__fxSeen[c] = (window.__fxSeen[c] || 0) + 1; }); };
-  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(note))).observe(document.body, { childList: true, subtree: true }); }"""
+  new MutationObserver(ms => ms.forEach(m => { if (m.type === 'attributes') { if (/\\b(pop|glow|hurt)\\b/.test(m.target.className)) note(m.target); } else m.addedNodes.forEach(note); })).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }); }"""
 
 with sync_playwright() as pw:
     cr = pw.chromium.launch(channel="chrome")
