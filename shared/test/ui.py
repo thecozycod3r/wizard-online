@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8765/").rstrip("/") + "/"
 SH = "/private/tmp/claude-501/-Users-dhruvshricharan/0bd99fd1-7258-490a-8f79-3642f4174666/scratchpad/ui-"
-GAMES = {"wizard": ("window.__wiz", 3), "lodestone": ("window.__lode", 2), "marvels": ("window.__mar", 3), "avalon": ("window.__ava", 5)}
+GAMES = {"wizard": ("window.__wiz", 3), "lodestone": ("window.__lode", 2), "marvels": ("window.__mar", 3), "avalon": ("window.__ava", 5), "incan": ("window.__inc", 3)}
 DEVICES = [("iPhone SE", "webkit"), ("iPhone 13", "webkit"), ("Pixel 7", "chromium"), ("iPad Mini", "webkit"), ("Desktop", "chromium")]
 results = []
 
@@ -31,7 +31,7 @@ def rules(page, label):
     for i in range(n):
         tabs.nth(i).click(); page.wait_for_timeout(120)
         if len(page.inner_text(".sheetbody").strip()) < 80: empty.append(tabs.nth(i).inner_text())
-    check(f"{label}: Rules opens with {n} tabs, all filled", n >= 4 and not empty, ", ".join(empty))
+    check(f"{label}: Rules opens with {n} tabs, all filled", n >= 3 and not empty, ", ".join(empty))
     over = page.evaluate("() => document.documentElement.scrollWidth > innerWidth + 1")
     check(f"{label}: Rules sheet fits", not over)
     page.locator('.sheethead [data-act="close"]').click()

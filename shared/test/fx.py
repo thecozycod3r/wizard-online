@@ -9,7 +9,7 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava"}[GAME]
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc"}[GAME]
 ROOT = Path(__file__).resolve().parents[2]
 PLAN = (open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0] if GAME == "wizard"
         else open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0])
@@ -19,6 +19,7 @@ NEED = {
     "lodestone": ["fx-welcome", "crown", "fly", "fx-banner"],
     "marvels": ["fx-welcome", "crown", "fly", "pop", "fx-banner", "battle"],
     "avalon": ["fx-welcome", "crown", "fx-banner"],
+    "incan": ["fx-welcome", "crown", "fx-banner"],
 }[GAME]
 NAMES = ["Dhruv", "Anya", "Henry"] + (["Freya", "Omar"] if GAME == "avalon" else [])
 WATCH = """() => { window.__fxSeen = {};

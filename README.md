@@ -33,3 +33,8 @@ The Resistance: Avalon, 5–10 players. Pure engine `avalon/engine.js`; screens 
 - `python3 avalon/test/e2e.py <url> <N> [min] [nice]` — N phones play through the UI (`nice`: Evil never fails, so the Assassin acts).
 - `python3 avalon/test/failover.py [url]` — host drops, takeover, host rejoins from a phone.
 - Shared suites take `avalon` (5 players where others use 4). `swipe.py` doesn't apply: Avalon's table has no sideways rows.
+
+## Incan Gold (`incan/`)
+Incan Gold (Moon & Faidutti), 3–8 players. Engine `incan/engine.js`; screens `incan/app.js`; drawn art `incan/art.js`. Between temples the table runner moves on by itself (`E.pause` → room `timers`).
+- `node incan/test/sim.mjs` — 4,000 games at 3–8 players + rule checks (splits and leftovers, lone-leaver artifacts, 5/10 artifact values, double hazards, removed hazards, lost/undrawn artifacts, private tents).
+- `python3 incan/test/e2e.py <url> <N>` · `python3 incan/test/failover.py [url]` · shared suites take `incan` (no sideways rows, so no swipe test).
