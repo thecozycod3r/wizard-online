@@ -11,19 +11,20 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar"}[GAME]
-MINP = 3 if GAME != "lodestone" else 2
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava"}[GAME]
+MINP = {"lodestone": 2, "avalon": 5}.get(GAME, 3)
 results = []
 def check(name, ok, detail=""):
     results.append(ok); print(("PASS " if ok else "FAIL ") + name + (f" — {detail}" if detail else ""), flush=True)
 
 IMGS_DONE = """() => { const vis = [...document.images].filter(i => { const r = i.getBoundingClientRect(); return r.width > 0 && r.bottom > 0 && r.top < innerHeight && r.left < innerWidth && i.src; });
   const bg = [...document.querySelectorAll('[style*="background-image"]')].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.bottom > 0 && r.top < innerHeight; });
-  return vis.length > 0 && vis.every(i => i.complete && i.naturalWidth > 0); }"""
+  // a table drawn without picture files (Avalon's crests) counts as loaded once it's on screen
+  return (vis.length > 0 || !!document.querySelector('.knights')) && vis.every(i => i.complete && i.naturalWidth > 0); }"""
 
 with sync_playwright() as pw:
     b = pw.chromium.launch(channel="chrome")
-    names = ["Dhruv", "Anya", "Henry"][:max(MINP, 3)]
+    names = ["Dhruv", "Anya", "Henry", "Freya", "Omar"][:max(MINP, 3)]
     pg = {}
     for n in names: pg[n] = b.new_context(**pw.devices["Pixel 7"]).new_page()
     a = pg["Anya"]; cdp = a.context.new_cdp_session(a)

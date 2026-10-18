@@ -12,12 +12,12 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar"}[GAME]
-ROWS = {"wizard": [".opps"], "lodestone": [".mrow", ".opps"], "marvels": [".hand", ".opps"]}[GAME]
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava"}[GAME]
+ROWS = {"wizard": [".opps"], "lodestone": [".mrow", ".opps"], "marvels": [".hand", ".opps"], "avalon": [".tabs"]}[GAME]   # Avalon has no sideways rows on the table
 ROOT = Path(__file__).resolve().parents[2]
 PLAN = (open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0] if GAME == "wizard"
         else open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0])
-MAXP = 7 if GAME == "marvels" else 6
+MAXP = {"marvels": 7, "avalon": 10}.get(GAME, 6)
 results = []
 
 def check(name, ok, detail=""):

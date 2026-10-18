@@ -9,7 +9,7 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar"}[GAME]
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava"}[GAME]
 ROOT = Path(__file__).resolve().parents[2]
 PLAN = (open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0] if GAME == "wizard"
         else open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0])
@@ -18,7 +18,9 @@ NEED = {
     "wizard": ["fx-welcome", "crown", "fx-"],
     "lodestone": ["fx-welcome", "crown", "fly", "fx-banner"],
     "marvels": ["fx-welcome", "crown", "fly", "pop", "fx-banner", "battle"],
+    "avalon": ["fx-welcome", "crown", "fx-banner"],
 }[GAME]
+NAMES = ["Dhruv", "Anya", "Henry"] + (["Freya", "Omar"] if GAME == "avalon" else [])
 WATCH = """() => { window.__fxSeen = {};
   const note = el => { if (!(el instanceof Element)) return; for (const c of el.classList) if (/^(fx|fly|pop|crown|battle|fx-)/.test(c)) window.__fxSeen[c] = (window.__fxSeen[c] || 0) + 1;
     el.querySelectorAll?.('.crown,.battle,[class^="fx"]').forEach(x => { for (const c of x.classList) if (/^(fx|crown|battle)/.test(c)) window.__fxSeen[c] = (window.__fxSeen[c] || 0) + 1; }); };
@@ -27,14 +29,14 @@ WATCH = """() => { window.__fxSeen = {};
 with sync_playwright() as pw:
     cr = pw.chromium.launch(channel="chrome")
     pages, errs = [], []
-    for n in ["Dhruv", "Anya", "Henry"]:
+    for n in NAMES:
         p = cr.new_context(**pw.devices["Pixel 7"]).new_page(); p.on("pageerror", lambda e, n=n: errs.append((n, str(e)))); pages.append(p)
     host = pages[0]
     host.goto(BASE); host.evaluate(WATCH); host.fill("#nm", "Dhruv"); host.click("text=Start a game"); host.wait_for_selector("#link")
     link = host.inner_text("#link")
-    for p, n in zip(pages[1:], ["Anya", "Henry"]):
+    for p, n in zip(pages[1:], NAMES[1:]):
         p.goto(link); p.evaluate(WATCH); p.fill("#nm", n); p.click("text=Join game")
-    host.wait_for_selector("text=Players · 3/", timeout=30000)
+    host.wait_for_selector(f"text=Players · {len(NAMES)}/", timeout=30000)
     if GAME == "wizard": host.select_option("#rounds", "3")
     host.click('[data-act="start"]')
     for p in pages: p.wait_for_selector(".bar", timeout=20000)

@@ -8,8 +8,8 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar"}[GAME]
-MAX = 7 if GAME == "marvels" else 6
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava"}[GAME]
+MAX = {"marvels": 7, "avalon": 10}.get(GAME, 6)
 ROOT = Path(__file__).resolve().parents[2]
 PLAN = (open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0] if GAME == "wizard"
         else open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0])
@@ -46,7 +46,7 @@ with sync_playwright() as pw:
     hc, host = page("host", "iPhone 13")
     host.goto(BASE); host.fill("#nm", "Dhruv"); host.click("text=Start a game"); host.wait_for_selector("#link")
     link = host.inner_text("#link")
-    names = ["Anya", "<img src=x onerror=alert(1)>", "Freya", "Omar", "Lena", "Kofi"][:MAX - 1]
+    names = ["Anya", "<img src=x onerror=alert(1)>", "Freya", "Omar", "Lena", "Kofi", "Maya", "Ravi", "Zoe"][:MAX - 1]
     joiners = []
     for n in names:
         c, p = page(n); p.goto(link); p.fill("#nm", n); p.click("text=Join game"); joiners.append((c, p))
@@ -87,7 +87,7 @@ with sync_playwright() as pw:
     actor = next((p for _, p in joiners if p.evaluate(f"() => {J}.S.me") == who), host)
     seq = host.evaluate(f"() => {J}.S.view.seq")
     other = next(p for _, p in joiners if p.evaluate(f"() => {J}.S.me") != who)
-    bad = {"wizard": '{"type":"bid","n":99}', "lodestone": '{"type":"take","ores":["gold","gold"]}', "marvels": '{"type":"pick","card":"palace~37","how":"build"}'}[GAME]
+    bad = {"wizard": '{"type":"bid","n":99}', "lodestone": '{"type":"take","ores":["gold","gold"]}', "marvels": '{"type":"pick","card":"palace~37","how":"build"}', "avalon": '{"type":"propose","team":[]}'}[GAME]
     other.evaluate(f"() => {J}.room.act({bad})")   # not their turn AND invalid
     actor.evaluate(f"() => {J}.room.act({bad})")   # their turn but invalid
     time.sleep(2)

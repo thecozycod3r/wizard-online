@@ -13,11 +13,11 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar"}[GAME]
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava"}[GAME]
 ROOT = Path(__file__).resolve().parents[2]
 PLAN = (open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0] if GAME == "wizard"
         else open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0])
-MAXP = 7 if GAME == "marvels" else 6
+MAXP = {"marvels": 7, "avalon": 10}.get(GAME, 6)
 AWAY = 40
 import os
 QUIET = os.environ.get("QUIET") == "1"   # sleep with no offline / visibility events (the page must notice by itself)
@@ -33,7 +33,7 @@ HOSTING = f"() => !!{J}.S.isHost"
 with sync_playwright() as pw:
     cr = pw.chromium.launch(channel="chrome")
     errs = []
-    names = ["Dhruv", "Anya", "Henry", "Freya"]
+    names = ["Dhruv", "Anya", "Henry", "Freya"] + (["Omar"] if GAME == "avalon" else [])
     ctx = {n: cr.new_context(**pw.devices["Pixel 7"]) for n in names}
     pg = {}
     for n in names:
@@ -45,7 +45,7 @@ with sync_playwright() as pw:
         pg[n].goto(link); pg[n].fill("#nm", n)
         if n == "Henry": time.sleep(8)   # a real person takes a while on the name screen (this once broke joining)
         pg[n].click("text=Join game")
-    pg["Dhruv"].wait_for_selector(f"text=Players · 4/{MAXP}", timeout=30000)
+    pg["Dhruv"].wait_for_selector(f"text=Players · {len(names)}/{MAXP}", timeout=30000)
     if GAME == "wizard": pg["Dhruv"].select_option("#rounds", "5")
     pg["Dhruv"].click('[data-act="start"]')
     for n in names: pg[n].wait_for_selector(".bar", timeout=20000)

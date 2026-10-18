@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8765/").rstrip("/") + "/"
 SH = "/private/tmp/claude-501/-Users-dhruvshricharan/0bd99fd1-7258-490a-8f79-3642f4174666/scratchpad/ui-"
-GAMES = {"wizard": ("window.__wiz", 3), "lodestone": ("window.__lode", 2), "marvels": ("window.__mar", 3)}
+GAMES = {"wizard": ("window.__wiz", 3), "lodestone": ("window.__lode", 2), "marvels": ("window.__mar", 3), "avalon": ("window.__ava", 5)}
 DEVICES = [("iPhone SE", "webkit"), ("iPhone 13", "webkit"), ("Pixel 7", "chromium"), ("iPad Mini", "webkit"), ("Desktop", "chromium")]
 results = []
 
@@ -44,7 +44,7 @@ with sync_playwright() as pw:
         errs = []
         ctx = brs[eng].new_context(**opts); hub = ctx.new_page(); hub.on("pageerror", lambda e: errs.append(str(e)))
         hub.goto(BASE); sweep(hub, f"{dev} hub")
-        check(f"{dev} hub: 3 games listed", hub.locator("a.game").count() == 3)
+        check(f"{dev} hub: {len(GAMES)} games listed", hub.locator("a.game").count() == len(GAMES))
         hub.screenshot(path=SH + f"{tag}-hub.png", full_page=True)
         for g, (J, minp) in GAMES.items():
             host = ctx.new_page(); host.on("pageerror", lambda e: errs.append(str(e)))
@@ -54,7 +54,7 @@ with sync_playwright() as pw:
             guests = []
             for i in range(minp - 1):
                 gc = brs[eng].new_context(**opts); gp = gc.new_page(); gp.on("pageerror", lambda e: errs.append(str(e)))
-                gp.goto(link); gp.fill("#nm", ["Anya", "Henry"][i]); gp.click("text=Join game"); guests.append(gc)
+                gp.goto(link); gp.fill("#nm", ["Anya", "Henry", "Freya", "Omar"][i]); gp.click("text=Join game"); guests.append(gc)
             host.wait_for_selector(f"text=Players · {minp}/", timeout=30000)
             sweep(host, f"{dev} {g} lobby"); rules(host, f"{dev} {g} lobby")
             host.click('[data-act="start"]'); host.wait_for_selector(".bar", timeout=20000)

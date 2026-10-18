@@ -26,3 +26,10 @@ Tests (serve this folder with `python3 -m http.server 8765` first):
 - `python3 shared/test/resume.py <game> [url]` — a phone goes to the background (page frozen, 40 s) mid-game, as a guest and as the device running the table: it catches up, the game never goes backwards, the table never splits. `QUIET=1` sleeps with no offline/visibility events.
 - `python3 shared/test/slow.py <game> [url]` — joining on slow 4G (1.6 Mbps, 150 ms): join form, table and on-screen pictures timings, plus a 5 s signal drop.
 - `SCALE=1.3 python3 shared/test/ergo.py <game>` — the ergonomics sweep with the phone's large-text setting.
+
+## Avalon (`avalon/`)
+The Resistance: Avalon, 5–10 players. Pure engine `avalon/engine.js`; screens `avalon/app.js`; drawn crests `avalon/art.js` (painted art slots in when OpenAI credits are back — set `PAINTED`).
+- `node avalon/test/sim.mjs` — 3,000 games at 5–10 players + rule checks (roles, knowledge, votes/ties, five rejections, two-fail quest, Lady, Assassin, no role leaks in views).
+- `python3 avalon/test/e2e.py <url> <N> [min] [nice]` — N phones play through the UI (`nice`: Evil never fails, so the Assassin acts).
+- `python3 avalon/test/failover.py [url]` — host drops, takeover, host rejoins from a phone.
+- Shared suites take `avalon` (5 players where others use 4). `swipe.py` doesn't apply: Avalon's table has no sideways rows.
