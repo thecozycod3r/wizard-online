@@ -13,7 +13,7 @@ const ROMAN = ["I", "II", "III"];
 const COLORS = ["brown", "grey", "yellow", "blue", "red", "green", "purple"];
 const COLOR_NAME = { brown: "Raw materials", grey: "Goods", blue: "Civic", yellow: "Commerce", red: "Military", green: "Science", purple: "Guilds" };
 const ic = k => `<svg class="ic" aria-hidden="true"><use href="#i-${k}"/></svg>`;
-const artSet = id => `image-set(url('art/${id}.webp') 1x, url('art/${id}@2x.webp') 2x)`;
+const artSet = id => `image-set(url('art/${id}.webp?v=2') 1x, url('art/${id}@2x.webp?v=2') 2x)`;
 const CROWN = `<svg class="crown" viewBox="0 0 30 22" aria-label="Leader"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1b0"/><stop offset=".55" stop-color="#f2c14e"/><stop offset="1" stop-color="#b7832a"/></linearGradient></defs><path d="M2 7l6.5 5L15 2l6.5 10L28 7l-2.6 12H4.6z" fill="url(#cg)" stroke="#7a5418" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.4" y="17.6" width="21.2" height="3.4" rx="1.2" fill="url(#cg)" stroke="#7a5418" stroke-width="1"/><circle cx="15" cy="2.6" r="1.8" fill="#ff5a6e"/><circle cx="2.4" cy="7" r="1.5" fill="#7fd0ff"/><circle cx="27.6" cy="7" r="1.5" fill="#7fd0ff"/></svg>`;
 const LS = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* off */ } } };
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
@@ -208,7 +208,7 @@ function animate(last) {
     if (p.how === "stage" && (p.pid === leftPid() || p.pid === rightPid())) setTimeout(() => stageBanner(p.pid, p.stage), 350);
     else if (p.card && cardOf(p.card).color === "purple") sparkle(chipRect(p.pid), "#c7a2f2", 30);
   }
-  if (last.kind === "salvage") { const p = last.plays[0]; banner(`art/${cid(p.card)}@2x.webp`, cardOf(p.card).name, `${nameOf(p.pid)} rebuilt it from the discard pile`); }
+  if (last.kind === "salvage") { const p = last.plays[0]; banner(`art/${cid(p.card)}@2x.webp?v=2`, cardOf(p.card).name, `${nameOf(p.pid)} rebuilt it from the discard pile`); }
 }
 
 let lastBanner = 0;
@@ -217,7 +217,7 @@ function stageBanner(pid, n) {
   const m = E.marvelOf(P.marvel), st = m[P.side][n - 1];
   const wait = Math.max(0, lastBanner + 1900 - Date.now()); lastBanner = Date.now() + wait;
   setTimeout(() => {
-    banner(`art/${m.id}@2x.webp`, pid === S.me ? `Stage ${n} built!` : `${nameOf(pid)}: stage ${n}`, `${m.name} · ${[st.vp && `+${st.vp} points`, st.coins && `+${st.coins} coins`, st.shields && `+${st.shields} shields`, st.power && powerText(st.power)].filter(Boolean).join(" · ")}`);
+    banner(`art/${m.id}@2x.webp?v=2`, pid === S.me ? `Stage ${n} built!` : `${nameOf(pid)}: stage ${n}`, `${m.name} · ${[st.vp && `+${st.vp} points`, st.coins && `+${st.coins} coins`, st.shields && `+${st.shields} shields`, st.power && powerText(st.power)].filter(Boolean).join(" · ")}`);
     if (pid === S.me) burst();
   }, wait);
 }
@@ -264,7 +264,7 @@ function welcome() {
   const words = "Welcome to Dhruv's Vibe Coded Seven Marvels".split(" ");
   const d = document.createElement("div"); d.className = "fx-welcome";
   const pics = ["kyros", "lumen", "selene", "khepri", "ishtara", "thalos", "mausra"];
-  d.innerHTML = `<div class="wl-fan">${pics.map((m, i) => `<img src="art/${m}.webp" alt="" style="--i:${i - 3}">`).join("")}</div>
+  d.innerHTML = `<div class="wl-fan">${pics.map((m, i) => `<img src="art/${m}.webp?v=2" alt="" style="--i:${i - 3}">`).join("")}</div>
     <h1>${words.map((w, i) => `<span style="animation-delay:${.5 + i * .16}s">${w}</span>`).join(" ")}</h1><p>Manifest his greatness and you may win</p><small>Tap to start</small>`;
   document.body.append(d);
   // Always on screen for at least 3 whole seconds; after that a tap skips it.
@@ -305,7 +305,7 @@ function render() {
 }
 
 const rulesBtn = (cls = "ghost small") => `<button class="btn ${cls}" data-act="rules">Rules</button>`;
-const fan = ids => `<div class="fan">${ids.map((id, i) => `<img src="art/${id}.webp" alt="" style="transform:rotate(${(i - (ids.length - 1) / 2) * 9}deg) translateY(${Math.abs(i - (ids.length - 1) / 2) * 8}px)">`).join("")}</div>`;
+const fan = ids => `<div class="fan">${ids.map((id, i) => `<img src="art/${id}.webp?v=2" alt="" style="transform:rotate(${(i - (ids.length - 1) / 2) * 9}deg) translateY(${Math.abs(i - (ids.length - 1) / 2) * 8}px)">`).join("")}</div>`;
 
 function viewLanding() {
   return `<div class="page">${inAppHint()}<div class="hero">${fan(["herostatue", "kyros", "startower", "citadel"])}
@@ -688,7 +688,7 @@ document.addEventListener("visibilitychange", () => document.visibilityState ===
 {
   const hi = (devicePixelRatio || 1) > 1 ? "@2x" : "";
   const age = c => Math.min(...Object.keys(c.ages || { 3: 1 }).map(Number));
-  preload([...DATA.cards.slice().sort((a, b) => age(a) - age(b)).map(c => c.id), ...DATA.marvels.map(m => m.id)].map(id => `art/${id}${hi}.webp`));
+  preload([...DATA.cards.slice().sort((a, b) => age(a) - age(b)).map(c => c.id), ...DATA.marvels.map(m => m.id)].map(id => `art/${id}${hi}.webp?v=2`));
 }
 
 // ---------------------------------------------------------------- boot
