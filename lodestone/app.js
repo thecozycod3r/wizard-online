@@ -192,7 +192,7 @@ const fan = ids => `<div class="fan">${ids.map((id, i) => `<img src="art/${id}.w
 function viewLanding() {
   return `<div class="page">${inAppHint()}<div class="hero">${fan(["sil11", "nob06", "cin32", "iro34"])}
       <div class="eyebrow">Games4free · Ore edition</div><h1 class="title">Splendor</h1>
-      <p class="muted" style="max-width:40ch;margin:0">Gather ores, build mines and guilds, and win the favour of nobles. 2–6 players; 5–6 play the twin-deck variant.</p></div>
+      <p class="muted" style="max-width:40ch;margin:0">Gather ores, build mines and guilds, and win the favour of nobles. 2–6 players.</p></div>
     <form class="panel" data-form="create"><label for="nm" class="eyebrow">Your name</label>
       <div class="row"><input id="nm" type="text" maxlength="18" autocomplete="nickname" placeholder="e.g. Dhruv" value="${esc(room.lastName())}" required><button class="btn" type="submit">Start a game</button></div>
       <div class="err">${esc(S.error)}</div></form>
@@ -237,9 +237,9 @@ function viewLobby() {
       <span style="flex:1">${esc(p.name)}${p.id === S.me ? " <span class='muted'>(you)</span>" : ""}${p.id === L.hostId ? " <span class='badge'>HOST</span>" : ""}</span>
       <span class="dot ${p.online ? "" : "off"}"></span>${host && p.id !== S.me ? `<button class="btn ghost small" data-act="kick" data-pid="${p.id}">Remove</button>` : ""}</li>`).join("")}</ul>
       ${n < 2 ? `<p class="muted" style="margin:0">Waiting for at least 1 more player…</p>` : ""}</section>
-    <section class="panel"><div class="eyebrow">This table ${n >= 5 ? "· twin-deck variant" : ""}</div>
+    <section class="panel"><div class="eyebrow">This table</div>
       <dl class="setup"><dt>Each ore</dt><dd>${st.tokensPer} tokens</dd><dt>Gold</dt><dd>5</dd><dt>Nobles</dt><dd>${st.nobles}</dd>
-      <dt>Face-up cards</dt><dd>${st.display[1]} / ${st.display[2]} / ${st.display[3]}</dd><dt>Decks</dt><dd>${st.twin ? "Two full sets (180 cards)" : "One set (90 cards)"}</dd><dt>Win</dt><dd>15 points, then finish the round</dd></dl>
+      <dt>Face-up cards</dt><dd>${st.display[1]} / ${st.display[2]} / ${st.display[3]}</dd><dt>Decks</dt><dd>One set (90 cards) — no repeats</dd><dt>Win</dt><dd>15 points, then finish the round</dd></dl>
       <div class="row" style="justify-content:space-between"><span>Turn timer</span><span class="seg">${[[30, "30 s"], [60, "1 min"], [120, "2 min"]].map(([v, l]) => `<button aria-pressed="${(L.settings.timer || 60) === v}" ${host ? `data-act="timer" data-v="${v}"` : "disabled"}>${l}</button>`).join("")}</span></div>
       <p class="muted" style="margin:0;font-size:14px">When time runs out, the game makes the best move it can find for that player.</p></section>
     ${soundRow()}

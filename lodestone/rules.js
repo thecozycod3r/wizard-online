@@ -1,16 +1,16 @@
 // Lodestone rules text (Splendor rules, ore theme). Rewritten in our own words from the 2014 rulebook,
-// plus the twin-deck variant for 5–6 players.
+// plus a 5–6 player setup that keeps the single deck (no card ever appears twice).
 
 const ORE_LIST = `<b>Silver</b> (white), <b>Cobalt</b> (blue), <b>Malachite</b> (green), <b>Cinnabar</b> (red), <b>Iron</b> (black), and <b>Gold</b> as the wild token`;
 
 export function setupTable(n) {
   const rows = [
-    ["Players", "2", "3", "4", "5–6 (twin deck)"],
+    ["Players", "2", "3", "4", "5–6"],
     ["Each ore in the bank", "4", "5", "7", "7"],
     ["Gold", "5", "5", "5", "5"],
     ["Nobles on the table", "3", "4", "5", "players + 1"],
-    ["Face-up cards (L1 / L2 / L3)", "4 / 4 / 4", "4 / 4 / 4", "4 / 4 / 4", "8 / 6 / 4"],
-    ["Cards in the decks", "40 / 30 / 20", "40 / 30 / 20", "40 / 30 / 20", "80 / 60 / 40 (two sets)"],
+    ["Face-up cards (L1 / L2 / L3)", "4 / 4 / 4", "4 / 4 / 4", "4 / 4 / 4", "5 / 4 / 4"],
+    ["Cards in the decks", "40 / 30 / 20", "40 / 30 / 20", "40 / 30 / 20", "40 / 30 / 20"],
   ];
   const col = n >= 5 ? 4 : n - 1;
   return `<div class="tbl"><table>${rows.map((r, i) => `<tr>${r.map((c, j) => (i === 0 ? `<th${j === col ? ' style="color:var(--brass-2)"' : ""}>${c}</th>` : `<td${j === col ? ' style="color:var(--brass-2);font-weight:700"' : ""}>${c}</td>`)).join("")}</tr>`).join("")}</table></div>`;
@@ -68,11 +68,12 @@ export const RULES = {
     <h3>Reserved cards</h3><p>Up to 3 per player. A card reserved from the top of a deck is kept secret from other players. Reserved cards can't be discarded, only bought.</p>
     <h3>Nobles</h3><p>Each noble requires a set of bonuses, for example 4 Silver and 4 Cobalt, or 3 Cobalt, 3 Malachite and 3 Cinnabar. At the end of your turn, if you meet a noble's requirement it visits you (3 points). One per turn; you choose if several qualify. Visits can't be refused.</p>
     <h3>Winning</h3><p>Reaching 15 points triggers the end: the round is completed so that every player has had the same number of turns. Most points wins; ties go to the player with the fewest built cards.</p>
-    <h3>Variant for 5–6 players (twin deck)</h3><ul>
-      <li>Two copies of every card and noble are shuffled together.</li>
-      <li>The table shows 8 level-1, 6 level-2 and 4 level-3 cards.</li>
+    <h3>5–6 players</h3><ul>
+      <li>Same single set of 90 cards — no card ever appears twice.</li>
+      <li>The table shows 5 level-1 cards and 4 each of levels 2 and 3.</li>
       <li>Reveal nobles equal to the number of players + 1.</li>
       <li>Use 7 tokens of each ore; Gold stays at 5.</li>
-      <li>First to 15 points triggers the final round.</li></ul>
+      <li>First to 15 points triggers the final round.</li>
+      <li>With six players the cards can run out. If a deck is empty and six whole rounds pass with nobody building or reserving, the game ends and the highest score wins.</li></ul>
     <p class="muted" style="font-size:14px">Splendor is a game by Marc André (Space Cowboys, 2014). This version uses an ore theme; the card scenes and artwork are original to this site.</p>`,
 };

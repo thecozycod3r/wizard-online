@@ -1,5 +1,5 @@
 // Lodestone rules engine: Splendor rules (Space Cowboys, 2014) with an ore theme,
-// plus the twin-deck variant for 5–6 players. Pure state machine run by whichever device runs the table.
+// plus a 5–6 player setup on the same single deck. Pure state machine run by whichever device runs the table.
 // act(G, pid, action) mutates G and returns it, or throws Error(message).
 
 import { DATA } from "./data.js";
@@ -14,12 +14,12 @@ export const nobleOf = id => NOBLE[id.replace(/b$/, "")];
 export const MIN_PLAYERS = 2, MAX_PLAYERS = 6;
 
 export function setupFor(n) {
-  const twin = n >= 5;
+  // One set of 90 cards at every table size, so a card never appears twice. 5–6 players get a fifth level-1 card face up.
   return {
-    twin,
+    twin: false,
     tokensPer: { 2: 4, 3: 5, 4: 7 }[n] ?? 7,
     gold: 5,
-    display: twin ? { 1: 8, 2: 6, 3: 4 } : { 1: 4, 2: 4, 3: 4 },
+    display: n >= 5 ? { 1: 5, 2: 4, 3: 4 } : { 1: 4, 2: 4, 3: 4 },
     nobles: n + 1,
     target: 15,
   };
@@ -227,7 +227,15 @@ function endTurn(G, pid) {
     G.final = true;
     log(G, `${nameOf(G, pid)} reaches ${points(G, pid)} points: this is the final round.`);
   }
+  // With one deck at 5–6 players the cards can run out. Once a deck is empty, if six whole rounds go by with nobody
+  // building or reserving anything, nobody can make progress: the game ends and the highest score wins.
+  G.idle = ["buy", "reserve"].includes(G.last?.type) ? 0 : (G.idle || 0) + 1;
   const next = (G.turn + 1) % G.players.length;
+  if (!G.final && G.idle >= 6 * G.players.length && next === G.first && [1, 2, 3].some(l => !G.decks[l].length)) {
+    log(G, "The cards have run out and nobody has built anything for six rounds: the game ends here.");
+    G.stalled = true;
+    return finish(G);
+  }
   if (G.final && next === G.first) return finish(G);
   if (next === G.first) G.round += 1;
   G.turn = next; G.phase = "turn"; G.pending = null;

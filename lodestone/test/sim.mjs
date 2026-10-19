@@ -41,7 +41,8 @@ for (let g = 0; g < 4000; g++) {
   const t = Object.values(G.turns);
   assert(t.every(x => x === t[0]), "unequal number of turns");
   const r = G.result.rows;
-  assert(r[0].points >= 15 || stats.passes, "game ended without 15 points");
+  assert(G.stalled || r[0].points >= 15 || stats.passes, "game ended without 15 points");
+  if (G.stalled) stats.stalled = (stats.stalled || 0) + 1;
   for (let i = 1; i < r.length; i++) assert(r[i - 1].points > r[i].points || (r[i - 1].points === r[i].points && r[i - 1].cards <= r[i].cards));
   if (G.result.winners.length > 1) stats.ties++;
   stats.nobles += G.players.reduce((s, p) => s + G.pl[p.id].nobles.length, 0);
@@ -71,8 +72,11 @@ for (let g = 0; g < 4000; g++) {
 }
 {
   const G = newGame(Array.from({ length: 6 }, (_, i) => ({ id: "p" + i, name: "P" + i })));
-  assert.equal(G.settings.twin, true); assert.equal(G.nobles.length, 7); assert.equal(G.bank.silver, 7); assert.equal(G.bank.gold, 5);
-  assert.deepEqual([G.market[1].length, G.market[2].length, G.market[3].length], [8, 6, 4]);
+  assert.equal(G.settings.twin, false); assert.equal(G.nobles.length, 7); assert.equal(G.bank.silver, 7); assert.equal(G.bank.gold, 5);
+  assert.deepEqual([G.market[1].length, G.market[2].length, G.market[3].length], [5, 4, 4]);
+  // one set of 90 cards: never the same card twice on the table or in the decks
+  const all = [1, 2, 3].flatMap(l => [...G.market[l], ...G.decks[l]]);
+  assert.equal(all.length, 90); assert.equal(new Set(all).size, 90);
 }
 console.log("OK", stats);
 {
