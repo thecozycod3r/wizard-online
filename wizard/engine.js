@@ -6,6 +6,10 @@ export const SUITS = ["blue", "green", "red", "yellow"];
 export const SUIT_NAME = { blue: "Blue", green: "Green", red: "Red", yellow: "Yellow" };
 export const SPECIALS = ["shapeshifter", "dragon", "fairy", "bomb", "werewolf", "juggler", "cloud", "witch", "vampire"];
 export const ROUNDS_FOR = { 3: 20, 4: 15, 5: 12, 6: 10 };
+export const MAX_PLAYERS = 8;
+// 3–6 players: the rulebook's counts. 7–8 (our house rule): as many rounds as the deck in play allows — 60 cards plus
+// the specials chosen, so all 9 specials give 9 rounds at 7 and 8 rounds at 8, always leaving a card for trump.
+export const roundsFor = (n, specials = SPECIALS) => ROUNDS_FOR[n] || Math.floor((60 + specials.length - 1) / n);
 
 export function card(id) {
   if (id.startsWith("sp-")) return { id, kind: id.slice(3) };
@@ -51,9 +55,10 @@ export function indicatorTrump(id) {
 
 export function newGame(players, settings) {
   const n = players.length;
-  if (n < 3 || n > 6) throw new Error("Wizard needs 3 to 6 players.");
+  if (n < 3 || n > MAX_PLAYERS) throw new Error("Wizard needs 3 to 8 players.");
   const specials = SPECIALS.filter(s => settings.specials?.includes(s));
-  const total = Math.min(settings.rounds || ROUNDS_FOR[n], ROUNDS_FOR[n]);
+  const most = roundsFor(n, specials);
+  const total = Math.min(settings.rounds || most, most);
   const G = {
     v: 1, seq: 0, gameId: Math.random().toString(36).slice(2, 10),
     // Table rules (fixed): bids may never add up to the cards dealt; miss = −10 − 10 per trick off.

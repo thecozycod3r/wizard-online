@@ -63,7 +63,12 @@ function onUpdate(prev) {
 
 // ---------------------------------------------------------------- motion on the table
 const rectOf = sel => document.querySelector(sel)?.getBoundingClientRect();
-const chip = pid => rectOf(`.ex[data-pid="${pid}"]`);
+// an explorer's chip, only while it's actually visible in the scrolling table (not hidden under the dock or the top bar)
+function chip(pid) {
+  const r = rectOf(`.ex[data-pid="${pid}"]`), box = rectOf(".scroll");
+  if (!r || !box) return r;
+  return r.top >= box.top - 4 && r.bottom <= box.bottom + 4 ? r : null;
+}
 function fly(html, from, to, size = 22, delay = 0) {
   if (!from || !to) return;
   const d = document.createElement("div"); d.className = "fly"; d.innerHTML = html;

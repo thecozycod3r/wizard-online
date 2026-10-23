@@ -149,13 +149,14 @@ def main():
         guests = []
         N = int(sys.argv[3]) if len(sys.argv) > 3 else 4
         roster = [("Anya", cr, pixel, "drag", "chromium"), ("Henry", wk, se, "tap", "webkit"), ("Freya", cr, pixel_land, "drag", "chromium"),
-                  ("Omar", wk, iphone13, "tap", "webkit"), ("Lena", cr, pixel, "drag", "chromium")][:N - 1]
+                  ("Omar", wk, iphone13, "tap", "webkit"), ("Lena", cr, pixel, "drag", "chromium"),
+                  ("Kofi", wk, se, "tap", "webkit"), ("Maya", cr, pixel, "drag", "chromium")][:N - 1]
         for name, br, dev, mode, eng in roster:
             p = Player(name, br.new_context(**dev).new_page(), mode, eng)
             p.page.goto(link); p.page.fill("#nm", name); p.tap('button[type="submit"]')
             guests.append(p)
         for g in guests: g.page.wait_for_selector("text=Waiting for the host to start", timeout=30000)
-        host.page.wait_for_selector(f"text=Players · {N}/6", timeout=20000)
+        host.page.wait_for_selector(f"text=Players · {N}/8", timeout=20000)
         guests[0].page.screenshot(path=SH + "lobby-pixel.png")
         host.page.select_option("#rounds", ROUNDS)
         host.tap('[data-act="start"]')
@@ -164,7 +165,7 @@ def main():
         time.sleep(5.5)  # the welcome screen stays up for 3 whole seconds
         shots = set(); overflow = {}
         t0 = time.time()
-        while time.time() - t0 < 600:
+        while time.time() - t0 < 1800:
             ph = host.page.evaluate("() => window.__wiz.S.view?.phase")
             if ph == "gameOver": break
             rnd = host.page.evaluate("() => window.__wiz.S.view?.round")

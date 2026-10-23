@@ -19,7 +19,7 @@ const LS = {
 };
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const rid = () => Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
-const SEAT_COLORS = ["#e3c375", "#6fa0ff", "#45c983", "#f0675d", "#b48cff", "#f19ad2"];
+const SEAT_COLORS = ["#e3c375", "#6fa0ff", "#45c983", "#f0675d", "#b48cff", "#f19ad2", "#7fe3e0", "#ffb36b"];
 const SUIT_HEX = { blue: "var(--blue)", green: "var(--green)", red: "var(--red)", yellow: "var(--yellow)" };
 const img = (id, cls = "") => `<img class="${cls}" src="cards/${id}.webp" srcset="cards/${id}.webp 1x, cards/${id}@2x.webp 2x" alt="${esc(E.cardLabel(id))}" draggable="false">`;
 const linkFor = code => `${location.origin}${location.pathname}?g=${code}`;
@@ -27,7 +27,7 @@ const DEFAULT_SETTINGS = { specials: [...E.SPECIALS], dealerRule: true, penalty:
 
 // ---------------------------------------------------------------- table (shared Games4free room)
 const room = createRoom({
-  prefix: "wiz-", engine: E, minPlayers: 3, maxPlayers: 6, defaults: { ...DEFAULT_SETTINGS },
+  prefix: "wiz-", engine: E, minPlayers: 3, maxPlayers: E.MAX_PLAYERS, defaults: { ...DEFAULT_SETTINGS },
   hostOnly: ["resolve", "nextRound"],
   // the table runner shows each finished trick for a moment, and deals the next round if nobody does
   timers: G => G.phase === "trickShow" ? { ms: 2100, action: { type: "resolve" } } : G.phase === "roundEnd" ? { ms: 20000, action: { type: "nextRound" } } : null,
@@ -202,7 +202,7 @@ function viewLobby() {
   const isHost = room.isHost;
   const link = linkFor(L.code);
   const st = L.settings;
-  const maxR = E.ROUNDS_FOR[Math.max(3, Math.min(6, L.players.length))];
+  const maxR = E.roundsFor(Math.max(3, Math.min(E.MAX_PLAYERS, L.players.length)), st.specials || E.SPECIALS);
   const people = L.players.map((p, i) => `<li><span class="av" style="background:${SEAT_COLORS[i]}">${esc(p.name[0]?.toUpperCase())}</span>
       <span style="flex:1">${esc(p.name)}${p.id === S.me ? " <span class='muted'>(you)</span>" : ""}${p.id === L.hostId ? " <span class='badge'>HOST</span>" : ""}</span>
       <span class="dot ${p.online ? "" : "off"}" title="${p.online ? "Online" : "Offline"}"></span>
@@ -217,10 +217,10 @@ function viewLobby() {
       <div class="eyebrow">Invite players</div>
       <div class="share"><code id="link">${esc(link)}</code>
         <button class="btn small" data-act="share">Share link</button><button class="btn ghost small" data-act="copy">Copy</button></div>
-      <p class="muted" style="margin:0;font-size:15px">Anyone with the link enters their name and joins. 3–6 players. If someone drops out, the game keeps going and they can rejoin from any device.</p>
+      <p class="muted" style="margin:0;font-size:15px">Anyone with the link enters their name and joins. 3–8 players (7–8 is our house rule: fewer, bigger rounds). If someone drops out, the game keeps going and they can rejoin from any device.</p>
     </section>
     <section class="panel">
-      <div class="eyebrow">Players · ${L.players.length}/6</div>
+      <div class="eyebrow">Players · ${L.players.length}/${E.MAX_PLAYERS}</div>
       <ul class="plist">${people}</ul>
       ${L.players.length < 3 ? `<p class="muted" style="margin:0">Waiting for at least ${3 - L.players.length} more…</p>` : ""}
     </section>

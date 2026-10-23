@@ -15,7 +15,7 @@ function check(G, nCards) {
 }
 
 for (let g = 0; g < 3000; g++) {
-  const n = 3 + (g % 4);
+  const n = 3 + (g % 6);   // 3–8 players (7–8 = house rule)
   const specials = g % 5 === 0 ? [] : SPECIALS.filter(() => rnd() < 0.85);
   const players = Array.from({ length: n }, (_, i) => ({ id: "p" + i, name: "P" + i }));
   const G = newGame(players, { specials, dealerRule: g % 2 === 0, penalty: g % 3 ? "house" : "official", rounds: g % 7 === 0 ? 0 : 6 });
@@ -27,6 +27,8 @@ for (let g = 0; g < 3000; g++) {
       const total = Object.values(G.hands).flat().length + G.pile.length + (G.indicator ? 1 : 0);
       assert.equal(total, 60 + G.settings.specials.length, "card count");
       assert(Object.values(G.hands).every(h => h.length === G.round));
+      if (n >= 7) assert(G.indicator || G.trump !== undefined, "7–8 players: a card is left to turn for trump");
+      if (n >= 7) assert(G.pile.length + (G.indicator ? 1 : 0) >= 1, "7–8 players: never deal the whole deck");
       if (G.phase === "werewolf") stats.werewolf++;
     }
     if (G.phase === "trickShow") {

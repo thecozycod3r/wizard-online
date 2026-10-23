@@ -53,7 +53,7 @@ def main():
             guests.append(g)
         for g in guests:
             g.wait_for_selector("text=Waiting for the host to start", timeout=30000)
-        host.wait_for_selector("text=Players · 4/6")
+        host.wait_for_selector("text=Players · 4/8")
         host.screenshot(path=SHOTS + "e2e-lobby.png")
         host.select_option("#rounds", "3")
         host.click("text=Start game")

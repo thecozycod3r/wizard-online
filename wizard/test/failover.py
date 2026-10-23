@@ -33,7 +33,7 @@ def main():
             g.on("pageerror", lambda e, n=n: errs.append((n, str(e))))
             g.goto(link); g.fill("#nm", n); g.click("text=Join game"); guests.append(g)
         for g in guests: g.wait_for_selector("text=Waiting for the host to start", timeout=30000)
-        laptop.wait_for_selector("text=Players · 4/6", timeout=20000)
+        laptop.wait_for_selector("text=Players · 4/8", timeout=20000)
         laptop.select_option("#rounds", "5"); laptop.click("text=Start game")
         for g in guests: g.wait_for_selector(".bar", timeout=20000)
         time.sleep(6)  # let the welcome animation pass
