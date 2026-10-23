@@ -23,7 +23,7 @@ export const RULES = {
     <h3>Leaving</h3><p>The players leaving divide all the gems left on the path equally; any that can't be divided stay on the path. They put those and everything they carried this temple into their tent, where it's safe. If only one player leaves on that turn, they take all artifacts on the path. Players who leave sit out the rest of the temple.</p>
     <h3>Exploring</h3><p>If anyone stayed, the next card is turned. Treasure is divided equally among the players inside, rounding down, with the rest left on the card. An artifact stays on the path. A Hazard does nothing unless another of the same kind is already on the path — then everyone inside flees, losing the gems they carried this temple, and that Hazard card leaves the game.</p>
     <h3>End of a temple</h3><p>A temple ends when everyone has left or when a second Hazard of one kind appears. Any artifacts on the path are lost.</p>
-    <h3>Privacy</h3><p>You can see what others are carrying in the temple, but not what's in their tents — until the end.</p>
+    <h3>Scores</h3><p>Everyone's tent is shown on the table (our house rule — in the box game tents stay secret until the end).</p>
     <h3>End of the game</h3><p>After the fifth temple, tents are opened. Most treasure wins (artifacts count 5 or 10). Ties: most artifacts.</p>
     <h3>Turn timer</h3><p>If someone runs out of time, the game decides for them, weighing the danger against what they'd lose.</p>
     <p class="muted" style="font-size:14px">Incan Gold is designed by Alan R. Moon and Bruno Faidutti. Art on this site is original.</p>`,

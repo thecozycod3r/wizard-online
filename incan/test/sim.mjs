@@ -17,7 +17,7 @@ function play(n, bot) {
     ok(w.length > 0, "someone decides");
     const pid = w[Math.floor(Math.random() * w.length)];
     const before = E.viewFor(G, "p1");
-    ok(before.players.every(p => p.id === "p1" || p.tent === null), "other tents stay private");
+    ok(before.players.every(p => typeof p.tent === "number"), "every tent is visible to everyone (house rule)");
     E.act(G, pid, bot(G, pid));
   }
   ok(G.phase === "gameOver", "game ends");

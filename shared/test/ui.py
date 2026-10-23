@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8765/").rstrip("/") + "/"
 SH = "/private/tmp/claude-501/-Users-dhruvshricharan/0bd99fd1-7258-490a-8f79-3642f4174666/scratchpad/ui-"
-GAMES = {"wizard": ("window.__wiz", 3), "lodestone": ("window.__lode", 2), "marvels": ("window.__mar", 3), "avalon": ("window.__ava", 5), "incan": ("window.__inc", 3)}
+GAMES = {"wizard": ("window.__wiz", 3), "lodestone": ("window.__lode", 2), "marvels": ("window.__mar", 3), "avalon": ("window.__ava", 5), "incan": ("window.__inc", 3), "unoflip": ("window.__uno", 2), "nomercy": ("window.__uno", 2)}
 DEVICES = [("iPhone SE", "webkit"), ("iPhone 13", "webkit"), ("Pixel 7", "chromium"), ("iPad Mini", "webkit"), ("Desktop", "chromium")]
 results = []
 

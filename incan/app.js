@@ -4,7 +4,7 @@ import { alerts, soundRow, inAppHint } from "../shared/alert.js";
 import { hscroll } from "../shared/hscroll.js";
 import { RULES } from "./rules.js";
 import { preload } from "../shared/preload.js";
-import { GEM, pile, hazard, artifact, TORCH, CAMP, TEMPLE, TREASURE, ALL_ART, artUrl } from "./art.js";
+import { GEM, hazard, artifact, TORCH, CAMP, TEMPLE, TREASURE, ALL_ART, artUrl } from "./art.js";
 
 const $app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -44,8 +44,10 @@ function toast(html) {
 function onUpdate(prev) {
   const v = V();
   if (v) {
-    const key = v.last ? JSON.stringify([v.last.kind, v.last.round, v.path.length, v.phase, v.seq]) : null;
-    if (prev && key && v.last && v.seq !== prev.seq && key !== ui.shownLast && (v.last.kind === "round" ? prev.round !== v.round : true)) effect(v.last, v, prev);
+    // seq also ticks when a single player chooses; only a new turn/round result (a new `last`) gets effects
+    const key = v.last ? JSON.stringify([v.gameId, v.last.kind, v.last.round, v.round, v.path.length, v.phase, v.last.leavers || null]) : null;
+    ui.fresh = !!(prev && key && key !== ui.shownLast && (v.last.kind === "round" ? prev.round !== v.round : true));
+    if (ui.fresh) effect(v.last, v, prev);
     if (key) ui.shownLast = key;
     if (v.phase === "gameOver" && prev?.phase !== "gameOver") setTimeout(() => { ui.overlay = "over"; render(); burst(); }, fxHold + 400);
     const mineNow = waitingMe();
@@ -56,7 +58,7 @@ function onUpdate(prev) {
     if (v.gameId && v.round === 1 && !LS.get(wk)) { LS.set(wk, 1); setTimeout(welcome, 200); }
   }
   render();
-  if (prev && v?.last && v.seq !== prev.seq) { const last = v.last, wait = fxHold; requestAnimationFrame(() => setTimeout(() => motion(last, v, prev), wait)); }
+  if (ui.fresh && v?.last) { const last = v.last, wait = fxHold; requestAnimationFrame(() => setTimeout(() => motion(last, v, prev), wait)); }
 }
 
 // ---------------------------------------------------------------- motion on the table
@@ -116,7 +118,8 @@ function motion(last, v) {
 
 function cardHtml(id, left = 0, extra = "") {
   const c = E.cardOf(id);
-  if (c.kind === "treasure") return `<div class="pc t ${extra}" data-id="${id}">${TREASURE}<span class="v">${c.value}</span><div class="left">${left ? pile(left, 6) : ""}</div></div>`;
+  // a treasure card shows only what's still lying on it (the pot), not its face value
+  if (c.kind === "treasure") return `<div class="pc t ${left ? "" : "empty"} ${extra}" data-id="${id}">${TREASURE}${left ? `<span class="v">${left}</span>` : ""}</div>`;
   if (c.kind === "hazard") return `<div class="pc h ${extra}" data-id="${id}">${hazard(c.hazard)}</div>`;
   return `<div class="pc a ${extra}" data-id="${id}">${artifact(id)}</div>`;
 }
@@ -138,8 +141,7 @@ function effect(last, v, prev) {
       showFx(`<div class="bigcard">${cardHtml(c.id, 0, "deadly")}</div><div class="t">${esc(E.HAZARD_NAME[c.disaster.hazard])}!</div>
         <div class="l">${Object.keys(c.disaster.lost).length ? `${esc(Object.keys(c.disaster.lost).map(nameOf).join(", "))} flee${lost.length ? " and lose " + lost.map(([p, n]) => `${esc(nameOf(p))} ${n}`).join(", ") : ""}` : "The temple collapses"}</div>`, 3000);
       setTimeout(shake, fxHold - 2600);
-    } else if (card.kind === "artifact") showFx(`<div class="rays"></div><div class="bigcard">${cardHtml(c.id)}</div><div class="t">${esc(card.name)}</div><div class="l">An artifact! It goes to whoever leaves alone</div>`, 2000);
-    else if (card.kind === "hazard") showFx(`<div class="bigcard warn">${cardHtml(c.id)}</div><div class="t">${esc(E.HAZARD_NAME[card.hazard])}!</div><div class="l">A warning. One more and everyone inside flees</div>`, 1700);
+    }
   }
   if (last.end && !last.end.disaster && v.phase !== "gameOver" && last.kind === "turn") showFx(`<div class="t">Everyone's back at camp</div><div class="l">Next temple in a moment…</div>`, 1600);
 }
@@ -288,6 +290,7 @@ function viewGame() {
   const hz = E.HAZARDS.map(h => `<div class="h ${v.seen[h] ? "warn" : ""}" data-hz="${h}" title="${E.HAZARD_NAME[h]}">${hazard(h)}<small>${v.seen[h] ? "1 out!" : "safe"}</small>${v.gone[h] ? `<span class="gone">−${v.gone[h]}</span>` : ""}</div>`).join("");
   // a card gets the deal animation once, the first time it shows up on this phone
   if (ui.dealtRound !== `${v.gameId}.${v.round}`) { ui.dealtRound = `${v.gameId}.${v.round}`; ui.dealt = new Set(); }
+  const pot = v.path.reduce((s, x) => s + x.left, 0);
   const path = `<div class="pc temple">${TEMPLE}</div>` + v.path.map((s, i) => {
     const fresh = !ui.dealt.has(s.id); ui.dealt.add(s.id);
     return cardHtml(s.id, s.left, fresh ? "new" : "");
@@ -296,7 +299,7 @@ function viewGame() {
     const out = !p.inside, bot = S.bots?.includes(p.id), off = !S.online[p.id] && p.id !== S.me;
     const sub = v.phase === "gameOver" ? `${p.points} points` : out ? "at camp" : v.phase === "decide" ? (p.decided ? "decided" : "deciding…") : "in the temple";
     return `<div class="ex ${out ? "out" : ""} ${p.id === S.me ? "me" : ""}" data-pid="${p.id}">${p.id === lead ? CROWN : ""}${v.phase === "decide" && p.decided && p.inside ? `<span class="dec">READY</span>` : ""}
-      <span class="st">${out ? CAMP : TORCH}</span><span class="nm">${esc(p.name)}${p.id === S.me ? " <span class='muted' style='font-weight:700'>(you)</span>" : ""}<span class="sub">${esc(sub)}${bot ? "" : off ? " · away" : ""} <span class="tmr" data-tmr="${p.id}"></span></span></span>
+      <span class="st">${out ? CAMP : TORCH}</span><span class="nm">${esc(p.name)}${p.id === S.me ? " <span class='muted' style='font-weight:700'>(you)</span>" : ""}<span class="sub"><b class="pts">⛺${p.points ?? 0}</b> · ${esc(sub)}${bot ? "" : off ? " · away" : ""} <span class="tmr" data-tmr="${p.id}"></span></span></span>
       ${bot ? `<span class="badge bot">BOT</span>` : ""}<span class="arts">${p.artifacts.map(a => artifact(a.id)).join("")}</span>${p.inside && p.carry ? `<span class="carry">${p.carry}<i class="gem">${GEM.turq}</i></span>` : ""}</div>`;
   }).join("");
   return `<div id="table">
@@ -304,6 +307,7 @@ function viewGame() {
       <button class="btn ghost small" data-act="leave-ask" aria-label="Leave the game"><span aria-hidden="true">🚪</span><span class="lvt">Leave</span></button>
       <button class="btn ghost small" data-act="scores" aria-label="Scores"><span class="sci" aria-hidden="true">🏆</span><span class="sct">Scores</span></button>${rulesBtn("small")}</div>
     <div class="scroll"><div class="hz">${hz}</div>
+      ${pot ? `<div class="pot">Pot on the path: <b>${pot}</b> gem${pot === 1 ? "" : "s"} <span class="muted">· split by whoever heads back</span></div>` : ""}
       <div class="path" id="path">${path}</div>
       <div class="exp">${ex}</div></div>
     ${dock(v, P)}</div>`;
@@ -353,8 +357,8 @@ function rulesTabs() {
 }
 function scores() {
   const v = V();
-  return `<div class="tbl"><table><tr><th>Explorer</th><th>Carrying</th><th>Tent</th><th>Artifacts</th></tr>${v.players.map(p => `<tr><td>${esc(nameOf(p.id))}</td><td>${p.inside ? p.carry : "–"}</td><td>${p.tent ?? "🔒"}</td><td>${p.artifacts.length ? p.artifacts.map(a => a.value).join(" + ") : "–"}</td></tr>`).join("")}</table></div>
-    <p class="muted" style="font-size:13px">Tents stay closed until the end — you only know your own. Artifacts: the first three out score 5, later ones 10 (${v.artifactsOut} out so far).</p>`;
+  return `<div class="tbl"><table><tr><th>Explorer</th><th>Carrying</th><th>Tent</th><th>Artifacts</th><th>Points</th></tr>${v.players.slice().sort((a, b) => b.points - a.points).map(p => `<tr><td>${esc(nameOf(p.id))}</td><td>${p.inside ? p.carry : "–"}</td><td>${p.tent}</td><td>${p.artifacts.length ? p.artifacts.map(a => a.value).join(" + ") : "–"}</td><td><b>${p.points}</b></td></tr>`).join("")}</table></div>
+    <p class="muted" style="font-size:13px">Tent = gems banked at camp; Points = tent plus artifacts. Artifacts: the first three out score 5, later ones 10 (${v.artifactsOut} out so far).</p>`;
 }
 function podium() {
   const v = V(), r = v.result;

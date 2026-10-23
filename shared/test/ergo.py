@@ -17,8 +17,8 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc"}[GAME]
-MINE = {"wizard": ".hand", "lodestone": "#mine", "marvels": ".dock", "avalon": ".dock", "incan": ".dock"}[GAME]
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc", "unoflip": "window.__uno", "nomercy": "window.__uno"}[GAME]
+MINE = {"wizard": ".hand", "lodestone": "#mine", "marvels": ".dock", "avalon": ".dock", "incan": ".dock", "unoflip": ".dock", "nomercy": ".dock"}[GAME]
 ROOT = Path(__file__).resolve().parents[2]
 PLAN = (open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0] if GAME == "wizard"
         else open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0])

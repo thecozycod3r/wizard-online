@@ -165,7 +165,7 @@ export function viewFor(G, pid) {
     players: G.players.map(p => {
       const P = G.pl[p.id];
       return { id: p.id, name: p.name, inside: P.inside, carry: P.carry, decided: p.id in G.choices, artifacts: P.artifacts.map(a => ({ ...a })),
-        tent: over || p.id === pid ? P.tent : null, points: over || p.id === pid ? score(G, p.id) : null };
+        tent: P.tent, points: score(G, p.id) };   // tents are open to everyone (house rule, 24 Oct 2026)
     }),
     last: G.last ? structuredClone(G.last) : null, result: G.result ? structuredClone(G.result) : null,
   };

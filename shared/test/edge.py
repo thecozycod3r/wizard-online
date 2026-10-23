@@ -8,8 +8,8 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc"}[GAME]
-MAX = {"marvels": 7, "avalon": 10, "incan": 8}.get(GAME, 6)
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc", "unoflip": "window.__uno", "nomercy": "window.__uno"}[GAME]
+MAX = {"marvels": 7, "avalon": 10, "incan": 8, "unoflip": 10, "nomercy": 6}.get(GAME, 6)
 ROOT = Path(__file__).resolve().parents[2]
 PLAN = (open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0] if GAME == "wizard"
         else open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0])
@@ -87,7 +87,7 @@ with sync_playwright() as pw:
     actor = next((p for _, p in joiners if p.evaluate(f"() => {J}.S.me") == who), host)
     seq = host.evaluate(f"() => {J}.S.view.seq")
     other = next(p for _, p in joiners if p.evaluate(f"() => {J}.S.me") != who)
-    bad = {"wizard": '{"type":"bid","n":99}', "lodestone": '{"type":"take","ores":["gold","gold"]}', "marvels": '{"type":"pick","card":"palace~37","how":"build"}', "avalon": '{"type":"propose","team":[]}', "incan": '{"type":"choose","go":"maybe"}'}[GAME]
+    bad = {"wizard": '{"type":"bid","n":99}', "lodestone": '{"type":"take","ores":["gold","gold"]}', "marvels": '{"type":"pick","card":"palace~37","how":"build"}', "avalon": '{"type":"propose","team":[]}', "incan": '{"type":"choose","go":"maybe"}', "unoflip": '{"type":"play","card":-1}', "nomercy": '{"type":"play","card":-1}'}[GAME]
     other.evaluate(f"() => {J}.room.act({bad})")   # not their turn AND invalid
     actor.evaluate(f"() => {J}.room.act({bad})")   # their turn but invalid
     time.sleep(2)
