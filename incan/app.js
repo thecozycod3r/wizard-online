@@ -3,7 +3,8 @@ import { createRoom } from "../shared/room.js";
 import { alerts, soundRow, inAppHint } from "../shared/alert.js";
 import { hscroll } from "../shared/hscroll.js";
 import { RULES } from "./rules.js";
-import { GEM, pile, hazard, artifact, TORCH, CAMP, TEMPLE } from "./art.js";
+import { preload } from "../shared/preload.js";
+import { GEM, pile, hazard, artifact, TORCH, CAMP, TEMPLE, TREASURE, ALL_ART, artUrl } from "./art.js";
 
 const $app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -11,7 +12,7 @@ const SEAT = ["#f3d48a", "#7fb0ff", "#5fd39a", "#ff8a73", "#c6a2ff", "#f5a8d6", 
 const CROWN = `<svg class="crown" viewBox="0 0 30 22" aria-label="Carrying the most"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1b0"/><stop offset=".55" stop-color="#f2c14e"/><stop offset="1" stop-color="#b7832a"/></linearGradient></defs><path d="M2 7l6.5 5L15 2l6.5 10L28 7l-2.6 12H4.6z" fill="url(#cg)" stroke="#7a5418" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.4" y="17.6" width="21.2" height="3.4" rx="1.2" fill="url(#cg)" stroke="#7a5418" stroke-width="1"/></svg>`;
 const LS = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* off */ } } };
 
-const ui = { overlay: null, tab: "basics", shownLast: null };
+const ui = { overlay: null, tab: "basics", shownLast: null, dealt: new Set(), dealtRound: 0 };
 let fxHold = 0;
 
 const room = createRoom({
@@ -50,7 +51,7 @@ function onUpdate(prev) {
     const mineNow = waitingMe();
     const minePrev = prev ? prev.waiting.includes(S.me) && prev.path.length === v.path.length && prev.round === v.round : false;
     if (mineNow && !minePrev) alerts.yourTurn();
-    document.title = mineNow ? "● Your move · Incan Gold" : "Incan Gold · Games4free";
+    document.title = mineNow ? "● Your move · Incan Gold" : "Incan Gold · Table Night";
     const wk = "inc-welcome-" + v.gameId;
     if (v.gameId && v.round === 1 && !LS.get(wk)) { LS.set(wk, 1); setTimeout(welcome, 200); }
   }
@@ -102,19 +103,20 @@ function motion(last, v) {
   let t = (last.leavers || []).length ? 900 : 200;
   for (const c of last.cards || []) {
     const card = E.cardOf(c.id), from = rectOf(`.pc[data-id="${c.id}"]`);
+    if (card.kind === "treasure" && from) setTimeout(() => burstAt(from.left + from.width / 2, from.top + from.height / 2, 26, ["#2ec4b6", "#8ff3e6", "#f2c14e", "#ffe39a"]), t + 150);
     if (card.kind === "treasure" && c.each) {
       c.to.forEach((pid, i) => { for (let k = 0; k < Math.min(4, c.each); k++) fly(gemIcon, from, chip(pid), 18, t + i * 90 + k * 60); flash(`.ex[data-pid="${pid}"] .carry`, "pop", t + 700 + i * 90); });
     }
     if (card.kind === "hazard" && !c.disaster) { flash(`.hz [data-hz="${card.hazard}"]`, "pop", t); flash(`.hz [data-hz="${card.hazard}"]`, "glow", t); }
     if (card.kind === "artifact") flash(`.pc[data-id="${c.id}"]`, "glow", t);
-    if (c.disaster) Object.keys(c.disaster.lost).forEach(pid => flash(`.ex[data-pid="${pid}"]`, "hurt", 0));
+    if (c.disaster) { Object.keys(c.disaster.lost).forEach(pid => flash(`.ex[data-pid="${pid}"]`, "hurt", 0)); vignette(); }
     t += 450;
   }
 }
 
 function cardHtml(id, left = 0, extra = "") {
   const c = E.cardOf(id);
-  if (c.kind === "treasure") return `<div class="pc t ${extra}" data-id="${id}"><span class="v">${c.value}</span>${GEM.turq}<div class="left">${left ? pile(left, 6) : ""}</div></div>`;
+  if (c.kind === "treasure") return `<div class="pc t ${extra}" data-id="${id}">${TREASURE}<span class="v">${c.value}</span><div class="left">${left ? pile(left, 6) : ""}</div></div>`;
   if (c.kind === "hazard") return `<div class="pc h ${extra}" data-id="${id}">${hazard(c.hazard)}</div>`;
   return `<div class="pc a ${extra}" data-id="${id}">${artifact(id)}</div>`;
 }
@@ -122,13 +124,13 @@ function cardHtml(id, left = 0, extra = "") {
 function effect(last, v, prev) {
   if (last.kind === "turn") {
     const order = Object.keys(last.choices);
-    let html = `<div class="t" style="font-size:clamp(22px,6vw,32px)">${last.leavers.length ? `${last.leavers.length} head${last.leavers.length === 1 ? "s" : ""} back to camp` : "Everyone pushes on"}</div>
+    let html = `<div class="t" style="font-size:clamp(22px,6vw,32px)">${last.leavers.length === 1 ? `${esc(nameOf(last.leavers[0]))} ${last.leavers[0] === S.me ? "head" : "heads"} back to camp` : last.leavers.length ? `${last.leavers.length} head back to camp` : "Everyone pushes on"}</div>
       <div class="choices">${order.map((pid, i) => `<div class="c" style="animation-delay:${i * .07}s"><div class="i">${last.choices[pid] ? TORCH : CAMP}</div><span>${esc(nameOf(pid))}</span></div>`).join("")}</div>`;
     if (last.split?.each) html += `<div class="l">Each camper also picks up ${last.split.each} from the path</div>`;
     if (last.artifacts?.length) html += `<div class="l">${esc(nameOf(last.leavers[0]))} ${last.leavers[0] === S.me ? "grab" : "grabs"} ${last.artifacts.length === 1 ? "an artifact" : last.artifacts.length + " artifacts"} (+${last.artifacts.reduce((s, a) => s + a.value, 0)})!</div>`;
     if (last.leavers.length) showFx(html, 2400);
   }
-  if (last.kind === "round" && prev) showFx(`<div class="img" style="width:min(30vw,120px)">${TEMPLE}</div><div class="t">Temple ${last.round}</div><div class="l">The ${esc(E.artifactOf(last.artifact).name)} is rumoured to be inside</div>`, 2200);
+  if (last.kind === "round" && prev) showFx(`<div class="img gate">${TEMPLE}</div><div class="t">Temple ${last.round}</div><div class="l">The ${esc(E.artifactOf(last.artifact).name)} is rumoured to be inside</div>`, 2200);
   for (const c of last.cards || []) {
     const card = E.cardOf(c.id);
     if (c.disaster) {
@@ -136,8 +138,8 @@ function effect(last, v, prev) {
       showFx(`<div class="bigcard">${cardHtml(c.id, 0, "deadly")}</div><div class="t">${esc(E.HAZARD_NAME[c.disaster.hazard])}!</div>
         <div class="l">${Object.keys(c.disaster.lost).length ? `${esc(Object.keys(c.disaster.lost).map(nameOf).join(", "))} flee${lost.length ? " and lose " + lost.map(([p, n]) => `${esc(nameOf(p))} ${n}`).join(", ") : ""}` : "The temple collapses"}</div>`, 3000);
       setTimeout(shake, fxHold - 2600);
-    } else if (card.kind === "artifact") showFx(`<div class="bigcard">${cardHtml(c.id)}</div><div class="t">${esc(card.name)}</div><div class="l">An artifact! It goes to whoever leaves alone</div>`, 2000);
-    else if (card.kind === "hazard") toast(`${esc(E.HAZARD_NAME[card.hazard])}! A warning — another one and everyone inside flees.`);
+    } else if (card.kind === "artifact") showFx(`<div class="rays"></div><div class="bigcard">${cardHtml(c.id)}</div><div class="t">${esc(card.name)}</div><div class="l">An artifact! It goes to whoever leaves alone</div>`, 2000);
+    else if (card.kind === "hazard") showFx(`<div class="bigcard warn">${cardHtml(c.id)}</div><div class="t">${esc(E.HAZARD_NAME[card.hazard])}!</div><div class="l">A warning. One more and everyone inside flees</div>`, 1700);
   }
   if (last.end && !last.end.disaster && v.phase !== "gameOver" && last.kind === "turn") showFx(`<div class="t">Everyone's back at camp</div><div class="l">Next temple in a moment…</div>`, 1600);
 }
@@ -182,6 +184,15 @@ function burst(cols = ["#2ec4b6", "#f2c14e", "#ffe39a", "#8ff3e6", "#3a3a48"]) {
   for (let i = 0; i < 120; i++) { const a = rnd(0, 6.28), s = rnd(2, 9); parts.push({ x: innerWidth / 2, y: innerHeight * .4, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 2, age: 0, life: rnd(50, 100), s: rnd(4, 9), c: cols[i % cols.length] }); }
   if (!running) { running = true; requestAnimationFrame(tick); }
 }
+function burstAt(x, y, n = 30, cols) {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  ensureFx();
+  for (let i = 0; i < n; i++) { const a = rnd(0, 6.28), s = rnd(1.5, 5); parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 2.5, age: 0, life: rnd(30, 60), s: rnd(2.5, 5), c: cols[i % cols.length] }); }
+  if (!running) { running = true; requestAnimationFrame(tick); }
+}
+function vignette() {
+  const d = document.createElement("div"); d.className = "vign"; document.body.append(d); setTimeout(() => d.remove(), 1600);
+}
 function welcome() {
   const words = "Welcome to Dhruv's Vibe Coded Incan Gold".split(" ");
   const d = document.createElement("div"); d.className = "fx-welcome";
@@ -221,7 +232,7 @@ const fan = arts => `<div class="fan">${arts.map((a, i) => `<div class="c" style
 
 function viewLanding() {
   return `<div class="page">${inAppHint()}<div class="hero">${fan([artifact("a1"), TEMPLE, artifact("a4")])}
-      <div class="eyebrow">Games4free · Push your luck</div><h1 class="title">Incan Gold</h1>
+      <div class="eyebrow">Table Night · Push your luck</div><h1 class="title">Incan Gold</h1>
       <p class="muted" style="max-width:40ch;margin:0">Explore five temples for gold. Every turn: go deeper, or run back to camp with your treasure — before the spiders, snakes and mummies get you. 3–8 players.</p></div>
     <form class="panel" data-form="create"><label for="nm" class="eyebrow">Your name</label>
       <div class="row"><input id="nm" type="text" maxlength="18" autocomplete="nickname" placeholder="e.g. Dhruv" value="${esc(room.lastName())}" required><button class="btn" type="submit">Start a game</button></div>
@@ -275,7 +286,12 @@ function viewLobby() {
 function viewGame() {
   const v = V(), P = me(), lead = carrier(v);
   const hz = E.HAZARDS.map(h => `<div class="h ${v.seen[h] ? "warn" : ""}" data-hz="${h}" title="${E.HAZARD_NAME[h]}">${hazard(h)}<small>${v.seen[h] ? "1 out!" : "safe"}</small>${v.gone[h] ? `<span class="gone">−${v.gone[h]}</span>` : ""}</div>`).join("");
-  const path = `<div class="pc temple">${TEMPLE}</div>` + v.path.map(s => cardHtml(s.id, s.left)).join("");
+  // a card gets the deal animation once, the first time it shows up on this phone
+  if (ui.dealtRound !== `${v.gameId}.${v.round}`) { ui.dealtRound = `${v.gameId}.${v.round}`; ui.dealt = new Set(); }
+  const path = `<div class="pc temple">${TEMPLE}</div>` + v.path.map((s, i) => {
+    const fresh = !ui.dealt.has(s.id); ui.dealt.add(s.id);
+    return cardHtml(s.id, s.left, fresh ? "new" : "");
+  }).join("");
   const ex = v.players.map((p, i) => {
     const out = !p.inside, bot = S.bots?.includes(p.id), off = !S.online[p.id] && p.id !== S.me;
     const sub = v.phase === "gameOver" ? `${p.points} points` : out ? "at camp" : v.phase === "decide" ? (p.decided ? "decided" : "deciding…") : "in the temple";
@@ -370,7 +386,14 @@ $app.addEventListener("click", e => {
     case "claim": room.claim(el.dataset.pid); return;
     case "again": ui.overlay = null; room.backToLobby(); return;
     case "timer": room.settings({ timer: +el.dataset.v }); return;
-    case "choose": room.act({ type: "choose", go: el.dataset.go === "1" }); return;
+    case "choose": {
+      const go = el.dataset.go === "1";
+      el.classList.add("chosen"); el.parentElement.classList.add("picked");
+      const r = el.getBoundingClientRect();
+      burstAt(r.left + r.width / 2, r.top + r.height / 3, go ? 34 : 20, go ? ["#ff7a1a", "#ffd44d", "#fff1b0"] : ["#c9a06a", "#f2c14e", "#fff"]);
+      setTimeout(() => room.act({ type: "choose", go }), 220);
+      return;
+    }
     default: return;
   }
   render();
@@ -408,6 +431,8 @@ setInterval(() => {
 async function wake() { try { await navigator.wakeLock?.request("screen"); } catch { /* not allowed */ } }
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && S.mode === "game" && wake());
 addEventListener("resize", () => S.mode === "game" && render());
+
+preload(ALL_ART.map(id => artUrl(id, devicePixelRatio > 1.5)));
 
 (function boot() {
   if (S.code) { const n = room.savedName(); if (n) { wake(); return room.join(n); } S.mode = "join"; }

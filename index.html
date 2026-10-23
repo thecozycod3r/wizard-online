@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0d1f">
-<title>Games4free</title>
-<meta name="description" content="Free card games to play with friends in the browser. Start a table, send the link, play. No accounts.">
-<meta property="og:title" content="Games4free">
+<meta name="theme-color" content="#08091a">
+<title>Table Night</title>
+<meta name="description" content="Table Night: free card games to play with friends in the browser. Start a table, send the link, play. No accounts.">
+<meta property="og:title" content="Table Night">
 <meta property="og:description" content="Free card games with friends: start a table, share the link, play.">
 <meta property="og:image" content="wizard/og.jpg">
 <link rel="icon" href="wizard/icon-192.png">
@@ -17,56 +17,164 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Cinzel:wght@700;900&display=swap">
 <style>
-/* Layout: a game shelf — wordmark, then one big tile per game with its own art and colour. */
+/* Layout: a games night table — animated wordmark over a card fan, then one poster per game.
+   Picking a game: the poster lifts, grows to fill the screen, its cards fan out, then the game loads. */
 :root{
-  --bg:#0b0d1f; --bg2:#14183a; --ink:#f3efe4; --dim:#a9a7b8; --line:#2b3060; --gold:#f1c75b; --mint:#5ee6b0;
-  --brand:"Bricolage Grotesque",system-ui,sans-serif; color-scheme:dark;
+  --bg:#08091a; --bg2:#121530; --ink:#f5f0e3; --dim:#a7a5b9; --line:rgba(255,255,255,.1); --gold:#f1c75b; --mint:#5ee6b0;
+  --brand:"Bricolage Grotesque",system-ui,sans-serif; --serif:"Cinzel",Georgia,serif; color-scheme:dark;
+  --ease:cubic-bezier(.2,.9,.25,1); --spring:cubic-bezier(.3,1.35,.45,1);
 }
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%}
-body{background:radial-gradient(900px 600px at 20% -10%,#2a2470 0%,transparent 60%),radial-gradient(800px 600px at 110% 20%,#123f4a 0%,transparent 55%),var(--bg);
-  color:var(--ink);font-family:var(--brand);padding:env(safe-area-inset-top,0) max(16px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0) max(16px,env(safe-area-inset-left,0px))}
-.wrap{max-width:980px;margin:0 auto;padding-block:36px 56px}
-header{display:flex;flex-direction:column;gap:10px}
-.mark{font-weight:800;font-size:clamp(46px,12vw,96px);line-height:.9;letter-spacing:-.04em}
-.mark span{color:var(--gold)}
-.tag{font-size:clamp(16px,4vw,20px);color:var(--dim);max-width:44ch;margin:0}
-.steps{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;padding:0;list-style:none}
-.steps li{font-size:14px;padding:7px 12px;border:1px solid var(--line);border-radius:999px;color:var(--ink)}
-.steps b{color:var(--mint);margin-right:4px}
-.shelf{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;margin-top:34px}
-.game{position:relative;display:flex;flex-direction:column;border-radius:22px;overflow:hidden;text-decoration:none;color:var(--ink);
-  background:var(--bg2);border:1px solid var(--line);transition:transform .2s ease,box-shadow .2s ease;min-height:360px}
-.game:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(0,0,0,.45)}
-.game:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
-.art{position:relative;height:220px;overflow:hidden;background:var(--c)}
-.art img{position:absolute;width:118px;border-radius:9px;box-shadow:0 14px 30px rgba(0,0,0,.6);bottom:-26px}
-.art::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,var(--bg2))}
-.body{padding:16px 18px 20px;display:flex;flex-direction:column;gap:8px;flex:1}
-.name{font-family:"Cinzel",serif;font-weight:900;font-size:30px;line-height:1}
-.desc{color:var(--dim);font-size:15px;line-height:1.45;margin:0}
-.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:8px}
-.meta span{font-size:12px;font-weight:500;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.07)}
-.play{position:absolute;top:14px;right:14px;z-index:2;font-weight:800;font-size:14px;padding:8px 14px;border-radius:999px;background:var(--gold);color:#1c1606}
-.soon .play{background:#444;color:#ddd}
-footer{margin-top:40px;color:var(--dim);font-size:13px;line-height:1.5;max-width:70ch}
-@media (prefers-reduced-motion:reduce){.game{transition:none}.game:hover{transform:none}}
+body{background:var(--bg);color:var(--ink);font-family:var(--brand);overflow-x:hidden;
+  padding:env(safe-area-inset-top,0) max(16px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0) max(16px,env(safe-area-inset-left,0px))}
+/* slow-moving coloured light behind everything */
+.aura{position:fixed;inset:-20%;z-index:-2;pointer-events:none;filter:blur(60px);opacity:.75;
+  background:radial-gradient(40% 35% at 20% 15%,#3a2a9a,transparent 70%),radial-gradient(35% 30% at 85% 25%,#0f5a62,transparent 70%),radial-gradient(40% 35% at 60% 90%,#5a2a10,transparent 70%);
+  animation:drift 26s ease-in-out infinite alternate}
+@keyframes drift{to{transform:translate3d(4%,-3%,0) rotate(8deg) scale(1.08)}}
+.grain{position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.07;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.sparks{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.sparks i{position:absolute;bottom:-10px;width:3px;height:3px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px 2px rgba(241,199,91,.6);opacity:0;animation:rise linear infinite}
+@keyframes rise{0%{transform:translateY(0);opacity:0}10%{opacity:.9}100%{transform:translateY(-105vh) translateX(var(--dx));opacity:0}}
+
+.wrap{max-width:1100px;margin:0 auto;padding-block:28px 64px}
+/* hero */
+.hero{display:grid;grid-template-columns:1.1fr .9fr;align-items:center;gap:20px;min-height:min(62vh,520px)}
+.mark{font-weight:800;font-size:clamp(52px,11vw,118px);line-height:.86;letter-spacing:-.045em;margin:0}
+.mark .ch{display:inline-block;opacity:0;transform:translateY(.5em) rotate(6deg);animation:pop .7s var(--spring) forwards;animation-delay:calc(var(--i) * 45ms + 120ms)}
+.mark .w{display:inline-block;white-space:nowrap} .mark .four{color:var(--gold);text-shadow:0 0 40px rgba(241,199,91,.45)}
+@keyframes pop{to{opacity:1;transform:none}}
+.tag{font-size:clamp(17px,2.4vw,21px);color:var(--dim);max-width:40ch;margin:18px 0 0;line-height:1.45;opacity:0;animation:fade .8s var(--ease) .7s forwards}
+.steps{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 0;padding:0;list-style:none}
+.steps li{font-size:14px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.04);backdrop-filter:blur(6px);
+  opacity:0;animation:fade .6s var(--ease) forwards;animation-delay:calc(.9s + var(--i) * .12s)}
+.steps b{color:var(--mint);margin-right:6px}
+.cta{display:inline-flex;align-items:center;gap:8px;margin-top:26px;font-weight:800;font-size:16px;color:#1c1606;background:var(--gold);padding:13px 20px;border-radius:999px;text-decoration:none;
+  box-shadow:0 10px 30px rgba(241,199,91,.25);opacity:0;animation:fade .6s var(--ease) 1.3s forwards;transition:transform .2s var(--ease)}
+.cta:hover{transform:translateY(-2px)} .cta svg{width:16px;height:16px;transition:transform .3s var(--ease)} .cta:hover svg{transform:translateY(3px)}
+@keyframes fade{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+/* card fan in the hero */
+.fanstage{position:relative;height:clamp(260px,40vw,420px);perspective:1200px}
+.fanstage img{position:absolute;left:50%;bottom:6%;width:clamp(96px,14vw,150px);aspect-ratio:5/7;object-fit:cover;border-radius:12px;
+  box-shadow:0 24px 50px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.12);transform-origin:50% 120%;
+  transform:translateX(-50%) rotate(0) translateY(40px);opacity:0;animation:deal 1s var(--spring) forwards;animation-delay:calc(.25s + var(--i) * 90ms)}
+@keyframes deal{to{opacity:1;transform:translateX(-50%) rotate(var(--r)) translateY(var(--y))}}
+.fanstage:hover img{transform:translateX(-50%) rotate(calc(var(--r) * 1.3)) translateY(calc(var(--y) - 10px))}
+.fanstage img{transition:transform .5s var(--spring)}
+.fanstage .float{animation:deal 1s var(--spring) forwards,bob 5s ease-in-out 1.6s infinite}
+@keyframes bob{50%{translate:0 -8px}}
+
+/* game posters */
+.shelf-h{display:flex;align-items:baseline;justify-content:space-between;margin:34px 0 16px;gap:10px}
+.shelf-h h2{font-family:var(--serif);font-size:clamp(24px,4vw,34px);margin:0;letter-spacing:.02em}
+.shelf-h span{color:var(--dim);font-size:14px}
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:20px}
+.game{--rx:0deg;--ry:0deg;--mx:50%;--my:50%;position:relative;display:flex;flex-direction:column;border-radius:24px;overflow:hidden;text-decoration:none;color:var(--ink);
+  background:var(--bg2);border:1px solid var(--line);min-height:420px;isolation:isolate;cursor:pointer;
+  transform:perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));transition:transform .35s var(--ease),box-shadow .35s var(--ease),border-color .35s;
+  opacity:0;translate:0 30px;animation:enter .8s var(--ease) forwards;animation-delay:calc(.15s + var(--i) * .1s)}
+@keyframes enter{to{opacity:1;translate:0 0}}
+.game:hover{box-shadow:0 30px 60px rgba(0,0,0,.55),0 0 0 1px color-mix(in srgb,var(--accent) 60%,transparent),0 0 60px -10px var(--accent);border-color:transparent}
+.game:focus-visible{outline:3px solid var(--gold);outline-offset:4px}
+.game::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--c)}
+.bgart{position:absolute;inset:0;z-index:-1;width:100%;height:62%;object-fit:cover;opacity:.55;filter:saturate(1.15);transform:scale(1.08);transition:transform 1.2s var(--ease),opacity .5s;
+  -webkit-mask-image:linear-gradient(180deg,#000 30%,transparent);mask-image:linear-gradient(180deg,#000 30%,transparent)}
+.game:hover .bgart{transform:scale(1.16);opacity:.7}
+/* light that follows the pointer */
+.game::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;
+  background:radial-gradient(400px circle at var(--mx) var(--my),rgba(255,255,255,.13),transparent 45%)}
+.game:hover::after{opacity:1}
+.art{position:relative;height:262px}
+.art img{position:absolute;bottom:16px;left:50%;width:118px;aspect-ratio:5/7;object-fit:cover;border-radius:10px;box-shadow:0 16px 34px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.14);
+  transform-origin:50% 130%;transform:translateX(-50%) rotate(var(--r,0deg));transition:transform .6s var(--spring)}
+.art img.cut{box-shadow:none;border-radius:0;object-fit:contain;filter:drop-shadow(0 14px 24px rgba(0,0,0,.65))}
+.art img:nth-child(1){--r:-12deg} .art img:nth-child(2){--r:0deg;bottom:28px;z-index:1} .art img:nth-child(3){--r:12deg}
+.game:hover .art img:nth-child(1){transform:translateX(-50%) rotate(-24deg) translateY(-6px)}
+.game:hover .art img:nth-child(2){transform:translateX(-50%) translateY(-16px) scale(1.05)}
+.game:hover .art img:nth-child(3){transform:translateX(-50%) rotate(24deg) translateY(-6px)}
+.body{padding:18px 20px 22px;display:flex;flex-direction:column;gap:9px;flex:1;background:linear-gradient(180deg,transparent,rgba(0,0,0,.35))}
+.name{font-family:var(--serif);font-weight:900;font-size:32px;line-height:1;text-shadow:0 2px 14px rgba(0,0,0,.6)}
+.desc{color:#cfcbdc;font-size:15px;line-height:1.5;margin:0}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:10px}
+.meta span{font-size:12px;font-weight:500;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.06)}
+.play{position:absolute;top:16px;right:16px;z-index:3;display:flex;align-items:center;gap:6px;font-weight:800;font-size:14px;padding:9px 15px;border-radius:999px;background:var(--gold);color:#1c1606;overflow:hidden;
+  box-shadow:0 8px 20px rgba(0,0,0,.4);transition:transform .3s var(--spring)}
+.play::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.75) 50%,transparent 70%);transform:translateX(-120%)}
+.game:hover .play{transform:scale(1.08)} .game:hover .play::after{animation:shine .9s var(--ease)}
+@keyframes shine{to{transform:translateX(120%)}}
+.play svg{width:12px;height:12px}
+
+/* launch: a copy of the poster grows to fill the screen, its cards fan out, then the game loads */
+.launch{position:fixed;z-index:50;overflow:hidden;border-radius:24px;pointer-events:none;background:var(--bg2);
+  transition:inset .7s var(--ease),border-radius .7s var(--ease)}
+.launch::before{content:"";position:absolute;inset:0;background:var(--c)}
+.launch .bgart{height:100%;opacity:.5;-webkit-mask-image:none;mask-image:none;transition:transform 1.4s var(--ease),opacity .7s}
+.launch.go .bgart{transform:scale(1.25);opacity:.35;filter:blur(2px) saturate(1.2)}
+.launch .stage{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:18px}
+.launch .cards{position:relative;width:min(70vw,420px);height:min(46vh,340px)}
+.launch .cards img{position:absolute;left:50%;bottom:0;width:min(30vw,170px);aspect-ratio:5/7;object-fit:cover;border-radius:14px;
+  box-shadow:0 30px 60px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.15);transform-origin:50% 140%;transform:translateX(-50%) scale(.6);opacity:0;
+  transition:transform .9s var(--spring),opacity .4s}
+.launch .cards img.cut{box-shadow:none;border-radius:0;object-fit:contain;filter:drop-shadow(0 20px 40px rgba(0,0,0,.7))}
+.launch.go .cards img{opacity:1}
+.launch.go .cards img:nth-child(1){transform:translateX(-50%) rotate(-22deg);transition-delay:.25s}
+.launch.go .cards img:nth-child(2){transform:translateX(-50%) translateY(-24px) scale(1.06);transition-delay:.32s}
+.launch.go .cards img:nth-child(3){transform:translateX(-50%) rotate(22deg);transition-delay:.39s}
+.launch h3{font-family:var(--serif);font-weight:900;font-size:clamp(38px,9vw,76px);margin:0;text-align:center;opacity:0;transform:translateY(20px) scale(.9);
+  transition:all .7s var(--spring) .45s;text-shadow:0 6px 30px rgba(0,0,0,.7)}
+.launch p{margin:0;color:var(--dim);font-size:15px;opacity:0;transition:opacity .5s .8s;display:flex;align-items:center;gap:10px}
+.launch.go h3{opacity:1;transform:none} .launch.go p{opacity:1}
+.launch .ring{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:var(--gold);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.launch .burst{position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:50%;background:var(--accent);opacity:0}
+.launch.go .burst{animation:burst 1s var(--ease) .2s}
+@keyframes burst{0%{opacity:.6;transform:scale(1)}100%{opacity:0;transform:scale(160)}}
+body.leaving .wrap{transition:opacity .5s,filter .5s,transform .7s var(--ease);opacity:.3;filter:blur(4px);transform:scale(.97)}
+
+footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width:70ch}
+@media (max-width:760px){
+  .hero{grid-template-columns:1fr;min-height:0;gap:0}
+  .fanstage{order:-1;height:250px;margin-bottom:18px}
+  .fanstage img{bottom:16%}
+  .game{min-height:390px}
+}
+@media (hover:none){.game{transform:none}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01s!important;animation-delay:0s!important;transition-duration:.01s!important}
+  .aura,.sparks{display:none}
+}
 </style>
 </head>
 <body>
+<div class="aura"></div><div class="grain"></div><div class="sparks" id="sparks"></div>
 <div class="wrap">
-  <header>
-    <div class="mark">Games<span>4</span>free</div>
-    <p class="tag">Card games to play with friends, right in the browser. Free, no accounts, works on any phone.</p>
-    <ul class="steps"><li><b>1</b>Start a table</li><li><b>2</b>Send the link</li><li><b>3</b>Friends type a name and play</li></ul>
+  <header class="hero">
+    <div>
+      <h1 class="mark" id="mark" aria-label="Table Night">Table Night</h1>
+      <p class="tag">Card and board games to play with friends, right in the browser. Free, no accounts, works on any phone.</p>
+      <ul class="steps"><li style="--i:0"><b>1</b>Start a table</li><li style="--i:1"><b>2</b>Send the link</li><li style="--i:2"><b>3</b>Friends type a name and play</li></ul>
+      <a class="cta" href="#games">Pick a game <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v12M3 9l5 5 5-5"/></svg></a>
+    </div>
+    <div class="fanstage" aria-hidden="true">
+      <img src="wizard/cards/sp-dragon@2x.webp" alt="" style="--i:0;--r:-30deg;--y:30px">
+      <img src="marvels/art/startower@2x.webp" alt="" style="--i:1;--r:-15deg;--y:4px">
+      <img class="float" src="incan/art/a1@2x.webp" alt="" style="--i:2;--r:0deg;--y:-8px">
+      <img src="lodestone/art/nob01@2x.webp" alt="" style="--i:3;--r:15deg;--y:4px">
+      <img src="incan/art/spiders@2x.webp" alt="" style="--i:4;--r:30deg;--y:30px">
+    </div>
   </header>
+
+  <div class="shelf-h" id="games"><h2>Pick a game</h2><span>5 games · up to 10 players</span></div>
   <main class="shelf">
-    <a class="game" href="wizard/" style="--c:linear-gradient(140deg,#1b2a7a,#0b1236)">
-      <span class="play">Play</span>
+    <a class="game" href="wizard/" style="--i:0;--accent:#5b7bff;--c:linear-gradient(150deg,#1b2a7a,#0b1236 70%)">
+      <img class="bgart" src="wizard/cards/sp-dragon@2x.webp" alt="">
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
       <div class="art">
-        <img src="wizard/cards/blue-wizard@2x.webp" alt="" style="left:18px;transform:rotate(-10deg)">
-        <img src="wizard/cards/sp-dragon@2x.webp" alt="" style="left:50%;margin-left:-59px;bottom:-12px">
-        <img src="wizard/cards/red-jester@2x.webp" alt="" style="right:18px;transform:rotate(10deg)">
+        <img src="wizard/cards/blue-wizard@2x.webp" alt="">
+        <img src="wizard/cards/sp-dragon@2x.webp" alt="">
+        <img src="wizard/cards/red-jester@2x.webp" alt="">
       </div>
       <div class="body">
         <div class="name">Wizard</div>
@@ -74,21 +182,27 @@ footer{margin-top:40px;color:var(--dim);font-size:13px;line-height:1.5;max-width
         <div class="meta"><span>3–6 players</span><span>~45 min</span><span>Trick-taking</span></div>
       </div>
     </a>
-    <a class="game" id="lodestone" href="splendor/" style="--c:linear-gradient(140deg,#5a2a10,#1d0f08)">
-      <span class="play">Play</span>
-      <div class="art" id="lodeart"></div>
+    <a class="game" href="splendor/" style="--i:1;--accent:#e0783a;--c:linear-gradient(150deg,#5a2a10,#1d0f08 70%)">
+      <img class="bgart" src="lodestone/art/nob01@2x.webp" alt="">
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
+      <div class="art">
+        <img src="lodestone/art/sil34@2x.webp" alt="">
+        <img src="lodestone/art/nob01@2x.webp" alt="">
+        <img src="lodestone/art/cin23@2x.webp" alt="">
+      </div>
       <div class="body">
         <div class="name">Splendor</div>
         <p class="desc">Collect ores, build mines and guilds, and win the favour of nobles. Ore edition, for 2–6 players.</p>
         <div class="meta"><span>2–6 players</span><span>~30 min</span><span>Engine-building</span></div>
       </div>
     </a>
-    <a class="game" href="marvels/" style="--c:linear-gradient(140deg,#3a2c5a,#120d22)">
-      <span class="play">Play</span>
+    <a class="game" href="marvels/" style="--i:2;--accent:#a58bff;--c:linear-gradient(150deg,#3a2c5a,#120d22 70%)">
+      <img class="bgart" src="marvels/art/kyros@2x.webp" alt="">
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
       <div class="art">
-        <img src="marvels/art/herostatue@2x.webp" alt="" style="left:18px;transform:rotate(-10deg);aspect-ratio:5/7;object-fit:cover">
-        <img src="marvels/art/kyros@2x.webp" alt="" style="left:50%;margin-left:-59px;bottom:-12px;aspect-ratio:5/7;object-fit:cover">
-        <img src="marvels/art/startower@2x.webp" alt="" style="right:18px;transform:rotate(10deg);aspect-ratio:5/7;object-fit:cover">
+        <img src="marvels/art/herostatue@2x.webp" alt="">
+        <img src="marvels/art/kyros@2x.webp" alt="">
+        <img src="marvels/art/startower@2x.webp" alt="">
       </div>
       <div class="body">
         <div class="name">Seven Marvels</div>
@@ -96,12 +210,12 @@ footer{margin-top:40px;color:var(--dim);font-size:13px;line-height:1.5;max-width
         <div class="meta"><span>3–7 players</span><span>~30 min</span><span>Card drafting</span></div>
       </div>
     </a>
-    <a class="game" href="avalon/" style="--c:linear-gradient(140deg,#14306e,#3a0c18)">
-      <span class="play">Play</span>
+    <a class="game" href="avalon/" style="--i:3;--accent:#e2465c;--c:linear-gradient(150deg,#14306e,#3a0c18 75%)">
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
       <div class="art">
-        <img src="avalon/hub-merlin.png" alt="" style="left:18px;transform:rotate(-10deg);box-shadow:none;border-radius:0;filter:drop-shadow(0 14px 24px rgba(0,0,0,.6))">
-        <img src="avalon/hub-assassin.png" alt="" style="left:50%;margin-left:-59px;bottom:-12px;box-shadow:none;border-radius:0;filter:drop-shadow(0 14px 24px rgba(0,0,0,.6))">
-        <img src="avalon/hub-morgana.png" alt="" style="right:18px;transform:rotate(10deg);box-shadow:none;border-radius:0;filter:drop-shadow(0 14px 24px rgba(0,0,0,.6))">
+        <img class="cut" src="avalon/hub-merlin.png" alt="">
+        <img class="cut" src="avalon/hub-assassin.png" alt="">
+        <img class="cut" src="avalon/hub-morgana.png" alt="">
       </div>
       <div class="body">
         <div class="name">Avalon</div>
@@ -109,12 +223,13 @@ footer{margin-top:40px;color:var(--dim);font-size:13px;line-height:1.5;max-width
         <div class="meta"><span>5–10 players</span><span>~30 min</span><span>Hidden roles</span></div>
       </div>
     </a>
-    <a class="game" href="incan/" style="--c:linear-gradient(140deg,#2c4a22,#3a2408)">
-      <span class="play">Play</span>
+    <a class="game" href="incan/" style="--i:4;--accent:#f2b23e;--c:linear-gradient(150deg,#1f3a1a,#3a2408 75%)">
+      <img class="bgart" src="incan/art/temple@2x.webp" alt="">
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
       <div class="art">
-        <img src="incan/hub-a.png" alt="" style="left:18px;transform:rotate(-10deg);box-shadow:none;border-radius:0;filter:drop-shadow(0 14px 24px rgba(0,0,0,.6))">
-        <img src="incan/hub-b.png" alt="" style="left:50%;margin-left:-59px;bottom:-12px;box-shadow:none;border-radius:0;filter:drop-shadow(0 14px 24px rgba(0,0,0,.6))">
-        <img src="incan/hub-c.png" alt="" style="right:18px;transform:rotate(10deg);box-shadow:none;border-radius:0;filter:drop-shadow(0 14px 24px rgba(0,0,0,.6))">
+        <img src="incan/art/snakes@2x.webp" alt="">
+        <img src="incan/art/a1@2x.webp" alt="">
+        <img src="incan/art/mummies@2x.webp" alt="">
       </div>
       <div class="body">
         <div class="name">Incan Gold</div>
@@ -126,13 +241,53 @@ footer{margin-top:40px;color:var(--dim);font-size:13px;line-height:1.5;max-width
   <footer>Specially made by Dhruv for his friends. All artwork on this site is original.</footer>
 </div>
 <script>
-  // Lodestone tile art, once the game exists.
-  fetch("lodestone/index.html", { method: "HEAD" }).then(r => {
-    const tile = document.getElementById("lodestone");
-    if (!r.ok) { tile.classList.add("soon"); tile.querySelector(".play").textContent = "Coming soon"; tile.removeAttribute("href"); return; }
-    document.getElementById("lodeart").innerHTML = ["sil34", "nob01", "cin23"].map((id, i) =>
-      `<img src="lodestone/art/${id}.webp" alt="" style="${["left:18px;transform:rotate(-10deg)", "left:50%;margin-left:-59px;bottom:-12px", "right:18px;transform:rotate(10deg)"][i]}">`).join("");
-  }).catch(() => {});
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // wordmark: one letter at a time, "Night" in gold
+  const mark = document.getElementById("mark");
+  mark.innerHTML = ["Table", "Night"].map((w, k) => `<span class="w${k ? " four" : ""}">${[...w].map((c, i) => `<span class="ch" style="--i:${i + k * 6}" aria-hidden="true">${c}</span>`).join("")}</span>`).join(" ");
+
+  // embers drifting up
+  if (!still) document.getElementById("sparks").innerHTML = Array.from({ length: 22 }, () =>
+    `<i style="left:${Math.random() * 100}%;--dx:${(Math.random() - .5) * 120}px;animation-duration:${9 + Math.random() * 12}s;animation-delay:${-Math.random() * 20}s;opacity:${.3 + Math.random() * .6}"></i>`).join("");
+
+  // posters tilt toward the pointer and catch the light
+  const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
+  for (const g of document.querySelectorAll(".game")) {
+    if (fine && !still) {
+      g.addEventListener("pointermove", e => {
+        const r = g.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        g.style.setProperty("--ry", `${(x - .5) * 8}deg`); g.style.setProperty("--rx", `${(.5 - y) * 8}deg`);
+        g.style.setProperty("--mx", `${x * 100}%`); g.style.setProperty("--my", `${y * 100}%`);
+      });
+      g.addEventListener("pointerleave", () => { g.style.setProperty("--ry", "0deg"); g.style.setProperty("--rx", "0deg"); });
+    }
+    g.addEventListener("click", e => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;   // new-tab clicks behave normally
+      e.preventDefault(); launch(g);
+    });
+  }
+
+  // picking a game: the poster grows to fill the screen, its cards fan out, then the game loads
+  let busy = false;
+  function launch(g) {
+    if (busy) return; busy = true;
+    const href = g.getAttribute("href");
+    if (still) { location.href = href; return; }
+    const r = g.getBoundingClientRect(), L = document.createElement("div");
+    L.className = "launch";
+    L.style.cssText = g.getAttribute("style") + `;top:${r.top}px;left:${r.left}px;right:${innerWidth - r.right}px;bottom:${innerHeight - r.bottom}px`;
+    const bg = g.querySelector(".bgart");
+    L.innerHTML = `${bg ? `<img class="bgart" src="${bg.src}" alt="">` : ""}<div class="burst"></div>
+      <div class="stage"><div class="cards">${[...g.querySelectorAll(".art img")].map(i => `<img class="${i.className}" src="${i.src}" alt="">`).join("")}</div>
+      <h3>${g.querySelector(".name").textContent}</h3><p><span class="ring"></span>Opening the table…</p></div>`;
+    document.body.appendChild(L);
+    document.body.classList.add("leaving");
+    requestAnimationFrame(() => requestAnimationFrame(() => { L.style.inset = "0"; L.style.borderRadius = "0"; L.classList.add("go"); }));
+    setTimeout(() => { location.href = href; }, 1250);
+  }
+  // coming Back to this page from a game restores the shelf
+  addEventListener("pageshow", e => { if (e.persisted) { busy = false; document.body.classList.remove("leaving"); document.querySelectorAll(".launch").forEach(n => n.remove()); } });
 </script>
 </body>
 </html>

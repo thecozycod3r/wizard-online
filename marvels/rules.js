@@ -77,7 +77,7 @@ export const RULES = {
       <li><b>Great Beacon</b>: a private resource of your choice every turn.</li>
       <li><b>Science wildcards</b> (Hanging Terraces, Inventors' Guild): chosen at the end for the best score.</li></ul>
     <h3>Game end</h3><p>After the Age III battles, add up battles, coins (1 per 3), Marvel, civic, science, commerce and guilds. Most points wins; ties go to most coins.</p>
-    <h3>Online play on Games4free</h3><ul><li>Picks are secret until everyone has picked. You can change your pick until then.</li>
+    <h3>Online play on Table Night</h3><ul><li>Picks are secret until everyone has picked. You can change your pick until then.</li>
       <li>The host sets a turn timer (30 s, 1 min or 2 min). If it runs out, the game picks a sensible card for you.</li>
       <li>If someone's connection drops, the game carries on and they can rejoin from any device with the same link.</li></ul>
     <p class="muted">Seven Marvels uses the rules of 7 Wonders (Antoine Bauza, Repos Production) with original names and art. The 2-player variant isn't included.</p>`,

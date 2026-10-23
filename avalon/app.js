@@ -63,7 +63,7 @@ function onUpdate(prev) {
     const mineNow = waitingMe() && v.phase !== "gameOver" && v.phase !== "reveal";
     const minePrev = prev ? prev.waiting.includes(S.me) && prev.phase === v.phase && prev.attempt === v.attempt && prev.quest === v.quest : false;
     if (mineNow && !minePrev) alerts.yourTurn();
-    document.title = mineNow ? "● Your move · Avalon" : "Avalon · Games4free";
+    document.title = mineNow ? "● Your move · Avalon" : "Avalon · Table Night";
     const wk = "ava-welcome-" + v.gameId;
     if (v.gameId && v.phase === "reveal" && !LS.get(wk)) { LS.set(wk, 1); setTimeout(welcome, 200); }
   }
@@ -207,7 +207,7 @@ const fan = roles => `<div class="fan">${roles.map(([r, s], i) => `<div class="c
 
 function viewLanding() {
   return `<div class="page">${inAppHint()}<div class="hero">${fan([["merlin", "good"], ["percival", "good"], ["assassin", "evil"], ["morgana", "evil"]])}
-      <div class="eyebrow">Games4free · The Resistance</div><h1 class="title">Avalon</h1>
+      <div class="eyebrow">Table Night · The Resistance</div><h1 class="title">Avalon</h1>
       <p class="muted" style="max-width:40ch;margin:0">Loyal knights of Arthur against the hidden servants of Mordred. Pick teams, vote, and go on secret quests. 5–10 players, best with friends you can talk to.</p></div>
     <form class="panel" data-form="create"><label for="nm" class="eyebrow">Your name</label>
       <div class="row"><input id="nm" type="text" maxlength="18" autocomplete="nickname" placeholder="e.g. Dhruv" value="${esc(room.lastName())}" required><button class="btn" type="submit">Start a game</button></div>

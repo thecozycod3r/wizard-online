@@ -68,7 +68,7 @@ function onUpdate(prev) {
     const mineNow = v.waiting.includes(S.me) && v.phase !== "gameOver";
     const minePrev = prev ? prev.waiting.includes(S.me) && prev.phase === v.phase && prev.turn === v.turn : false;
     if (mineNow && !minePrev) alerts.yourTurn();
-    document.title = mineNow ? "● Your turn · Splendor" : "Splendor · Games4free";
+    document.title = mineNow ? "● Your turn · Splendor" : "Splendor · Table Night";
     const wk = "lode-welcome-" + v.gameId;
     if (v.gameId && v.round === 1 && !LS.get(wk)) { LS.set(wk, 1); setTimeout(welcome, 200); }
   }
@@ -191,7 +191,7 @@ const fan = ids => `<div class="fan">${ids.map((id, i) => `<img src="art/${id}.w
 
 function viewLanding() {
   return `<div class="page">${inAppHint()}<div class="hero">${fan(["sil11", "nob06", "cin32", "iro34"])}
-      <div class="eyebrow">Games4free · Ore edition</div><h1 class="title">Splendor</h1>
+      <div class="eyebrow">Table Night · Ore edition</div><h1 class="title">Splendor</h1>
       <p class="muted" style="max-width:40ch;margin:0">Gather ores, build mines and guilds, and win the favour of nobles. 2–6 players.</p></div>
     <form class="panel" data-form="create"><label for="nm" class="eyebrow">Your name</label>
       <div class="row"><input id="nm" type="text" maxlength="18" autocomplete="nickname" placeholder="e.g. Dhruv" value="${esc(room.lastName())}" required><button class="btn" type="submit">Start a game</button></div>

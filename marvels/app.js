@@ -150,7 +150,7 @@ function onUpdate(prev) {
     const mineNow = (v.phase === "pick" || v.phase === "extra" || v.phase === "salvage") && v.waiting.includes(S.me);
     const minePrev = prev ? prev.waiting.includes(S.me) && prev.phase === v.phase && prev.turn === v.turn && prev.age === v.age : false;
     if (mineNow && !minePrev) alerts.yourTurn();
-    document.title = mineNow ? "● Your move · Seven Marvels" : "Seven Marvels · Games4free";
+    document.title = mineNow ? "● Your move · Seven Marvels" : "Seven Marvels · Table Night";
     const wk = "mar-welcome-" + v.gameId;
     if (v.gameId && v.age === 1 && v.turn === 1 && !LS.get(wk)) { LS.set(wk, 1); setTimeout(welcome, 200); }
     if (v.phase === "salvage" && v.waiting.includes(S.me) && !(prev?.phase === "salvage" && prev.waiting.includes(S.me))) ui.overlay = "salvage";
@@ -309,7 +309,7 @@ const fan = ids => `<div class="fan">${ids.map((id, i) => `<img src="art/${id}.w
 
 function viewLanding() {
   return `<div class="page">${inAppHint()}<div class="hero">${fan(["herostatue", "kyros", "startower", "citadel"])}
-      <div class="eyebrow">Games4free · 7 Wonders rules</div><h1 class="title">Seven Marvels</h1>
+      <div class="eyebrow">Table Night · 7 Wonders rules</div><h1 class="title">Seven Marvels</h1>
       <p class="muted" style="max-width:40ch;margin:0">Lead an ancient city through three Ages. Trade with your neighbours, raise armies, chase science and build your Marvel. 3–7 players, everyone plays at once.</p></div>
     <form class="panel" data-form="create"><label for="nm" class="eyebrow">Your name</label>
       <div class="row"><input id="nm" type="text" maxlength="18" autocomplete="nickname" placeholder="e.g. Dhruv" value="${esc(room.lastName())}" required><button class="btn" type="submit">Start a game</button></div>
