@@ -167,6 +167,7 @@ footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width
   .aura,.sparks{display:none}
 }
 /* no visible scrollbars anywhere (scrolling still works) */ *{scrollbar-width:none} *::-webkit-scrollbar{display:none;width:0;height:0}
+.showall{all:unset;cursor:pointer;color:var(--gold);font-weight:800;text-decoration:underline;text-underline-offset:3px}
 </style>
 </head>
 <body>
@@ -191,7 +192,7 @@ footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width
     </div>
   </header>
 
-  <div class="shelf-h" id="games"><h2>Pick a game</h2><span id="count">11 games · 2 to 12 players</span></div>
+  <div class="shelf-h" id="games"><h2>Pick a game</h2><span id="count" role="status">11 games · 2 to 12 players</span></div>
   <div class="filters" id="filters">
     <div class="fgroup"><span class="flabel">How many of you?</span>
       <div class="stepper"><button type="button" data-step="-1" aria-label="Fewer players">−</button><output id="npl">Any</output><button type="button" data-step="1" aria-label="More players">+</button></div></div>
@@ -382,16 +383,19 @@ footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width
       document.getElementById("npl").textContent = n || "Any";
       const drinksShown = tiles.some(t => t.g.tags.includes("drinking") && !t.a.classList.contains("hide"));
       document.getElementById("drinks-h").style.display = document.getElementById("drinks-shelf").style.display = drinksShown ? "" : "none";
-      document.getElementById("count").textContent = shown === tiles.length ? `${tiles.length} games · 2 to 12 players` : `${shown} of ${tiles.length} games${n ? ` for ${n} players` : ""}`;
-      try { localStorage.setItem("tn-filter", JSON.stringify({ n, tag })); } catch { /* off */ }
+      document.getElementById("count").innerHTML = shown === tiles.length ? `${tiles.length} games · 2 to 12 players`
+        : `${shown} of ${tiles.length} games${n ? ` for ${n} players` : ""} · <button type="button" class="showall" data-showall>Show all ${tiles.length}</button>`;
+      // this visit only: a filter remembered from last time quietly hid games
+      try { sessionStorage.setItem("tn-filter", JSON.stringify({ n, tag })); localStorage.removeItem("tn-filter"); } catch { /* off */ }
     }
+    document.getElementById("count").addEventListener("click", e => { if (e.target.closest("[data-showall]")) { n = 0; tag = "all"; for (const b of chips.children) b.setAttribute("aria-pressed", b.dataset.tag === "all"); apply(); } });
     document.getElementById("filters").addEventListener("click", e => {
       const s = e.target.closest("[data-step]");
       if (s) { n = Math.max(0, Math.min(12, (n || (+s.dataset.step > 0 ? 1 : 0)) + +s.dataset.step)); if (n === 1) n = +s.dataset.step > 0 ? 2 : 0; apply(); }
       const c = e.target.closest("[data-tag]");
       if (c) { tag = c.dataset.tag; for (const b of chips.children) b.setAttribute("aria-pressed", b === c); apply(); }
     });
-    try { const f = JSON.parse(localStorage.getItem("tn-filter")); if (f) { n = f.n || 0; tag = f.tag || "all"; for (const b of chips.children) b.setAttribute("aria-pressed", b.dataset.tag === tag); } } catch { /* off */ }
+    try { const f = JSON.parse(sessionStorage.getItem("tn-filter")); if (f) { n = f.n || 0; tag = f.tag || "all"; for (const b of chips.children) b.setAttribute("aria-pressed", b.dataset.tag === tag); } } catch { /* off */ }
     apply();
   });
 
