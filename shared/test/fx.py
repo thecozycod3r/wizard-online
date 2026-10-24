@@ -9,12 +9,12 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc", "unoflip": "window.__uno", "nomercy": "window.__uno", "nimmt": "window.__nim", "skullking": "window.__sk", "kingscup": "window.__kc", "ridebus": "window.__rb"}[GAME]
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc", "unoflip": "window.__uno", "nomercy": "window.__uno", "nimmt": "window.__nim", "skullking": "window.__sk", "kingscup": "window.__kc", "ridebus": "window.__rb", "coup": "window.__coup", "spyfall": "window.__spy", "codenames": "window.__cn"}[GAME]
 ROOT = Path(__file__).resolve().parents[2]
 PLAN = (open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0] if GAME == "wizard"
         else open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0])
 # kit games' PLAN returns {a: action, taps: [...]}; these suites want the action itself
-if GAME in ("nimmt", "skullking", "kingscup", "ridebus"): PLAN = f"() => {{ const p = ({PLAN})(); return p ? p.a : null; }}"
+if GAME in ("nimmt", "skullking", "kingscup", "ridebus", "coup", "spyfall", "codenames"): PLAN = f"() => {{ const p = ({PLAN})(); return p ? p.a : null; }}"
 # What each game must show at least once on some screen during a full game.
 NEED = {
     "wizard": ["fx-welcome", "crown", "fx-"],
@@ -28,8 +28,11 @@ NEED = {
     "skullking": ["fx-welcome", "fx-banner", "pop"],
     "kingscup": ["fx-welcome", "fx-banner"],
     "ridebus": ["fx-welcome", "fx-banner"],
+    "coup": ["fx-welcome", "fx-banner"],
+    "spyfall": ["fx-welcome", "fx-banner"],
+    "codenames": ["fx-welcome", "fx-banner"],
 }[GAME]
-NAMES = ["Dhruv", "Anya", "Henry"] + (["Freya", "Omar"] if GAME == "avalon" else [])
+NAMES = ["Dhruv", "Anya", "Henry"] + (["Freya", "Omar"] if GAME == "avalon" else ["Freya"] if GAME == "codenames" else [])
 WATCH = """() => { window.__fxSeen = {};
   const note = el => { if (!(el instanceof Element)) return; for (const c of el.classList) if (/^(fx|fly|pop|crown|battle|fx-|glow|badgefx|hurt)/.test(c)) window.__fxSeen[c] = (window.__fxSeen[c] || 0) + 1;
     el.querySelectorAll?.('.crown,.battle,[class^="fx"]').forEach(x => { for (const c of x.classList) if (/^(fx|crown|battle)/.test(c)) window.__fxSeen[c] = (window.__fxSeen[c] || 0) + 1; }); };

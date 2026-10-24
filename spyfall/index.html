@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#071318">
+<title>Spyfall · Table Night</title>
+<meta name="description" content="Spyfall for 3–10 players on your phones — find the spy before they find out where you are.">
+<meta property="og:title" content="Spyfall — join my game">
+<meta property="og:description" content="Tap the link, enter your name, and try not to be the spy.">
+<meta property="og:image" content="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="../shared/kit.css?v=1">
+<style>
+/* Layout: round + clock up top, your secret card, the players (🎤 = asking), the location list; ask / accuse / guess / vote in the dock. */
+:root{--bg:#061015;--bg2:#0d2129;--panel:rgba(12,34,42,.82);--line:rgba(255,255,255,.13);--ink:#f2f6f4;--dim:#a9c0c2;--gold:#ffb347;--gold-2:#ffd59a;
+  --display:"Special Elite","Courier New",monospace;--body:"Bricolage Grotesque",system-ui,sans-serif;--num:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:dark;
+  --bgimg:url("art/spy-hero@2x.webp?v=1");--dockbg:rgba(5,14,18,.94)}
+.title{font-family:var(--display);letter-spacing:.02em}
+.panel{background:rgba(10,30,38,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sheet{background:var(--bg2)} .toast{background:var(--bg2)}
+.fx-banner{background:rgba(5,14,18,.93);border-color:rgba(255,179,71,.35)} .fx-banner .t{font-family:var(--display)}
+.fx-banner .big{width:min(28vw,110px)} .fx-banner .big img{width:100%;border-radius:10px;display:block}
+.fx-banner.good{border-color:#5fd39a;box-shadow:0 0 50px rgba(95,211,154,.4),0 30px 80px rgba(0,0,0,.7)}
+.fx-banner.bad{border-color:#ff5d73;box-shadow:0 0 50px rgba(255,93,115,.4),0 30px 80px rgba(0,0,0,.7)}
+.sc{position:relative;width:100%;aspect-ratio:2/3;border-radius:10px;overflow:hidden;box-shadow:0 0 0 1.5px rgba(255,179,71,.5),0 6px 16px rgba(0,0,0,.55)}
+.sc img{width:100%;height:100%;object-fit:cover;display:block}
+.sc.loc .li{position:absolute;top:18%;left:0;right:0;text-align:center;font-size:2.4em} .sc.loc .ln{position:absolute;bottom:8%;left:4%;right:4%;text-align:center;font-family:var(--display);font-size:.8em;background:rgba(0,0,0,.6);border-radius:6px;padding:3px}
+.fan .c .sc{font-size:14px} .fx-welcome .wl-fan .c .sc{font-size:13px}
+.sclock{display:flex;flex-direction:column;line-height:1;font-weight:800;margin-left:10px} .sclock small{font-size:9px;letter-spacing:.14em;color:var(--dim)} .sclock b{font-size:20px;font-variant-numeric:tabular-nums}
+.sclock.low b{color:#ff5d73}
+.secret{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:14px;width:100%;margin:6px 0 10px;padding:10px;border-radius:16px;background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.4)}
+.secret img{width:84px;aspect-ratio:2/3;object-fit:cover;border-radius:9px;flex:none}
+.secret span{display:flex;flex-direction:column;gap:3px;font-size:18px} .secret b{font-family:var(--display);font-size:26px;font-weight:400} .secret i{font-style:normal;font-size:30px} .secret small{font-size:14px;color:var(--dim)}
+.secret.spy{background:rgba(255,93,115,.12);border-color:rgba(255,93,115,.55)} .secret.spy b{color:#ff8d9c}
+.chips{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))} .chip .val{font-size:18px} .chip.aim{border-color:#ff5d73;box-shadow:0 0 0 2px rgba(255,93,115,.4)}
+.locs{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px}
+.lc{all:unset;box-sizing:border-box;cursor:pointer;padding:8px 9px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--line);font-size:14px;display:flex;gap:6px;align-items:center}
+.lc i{font-style:normal} .lc.x{opacity:.35;text-decoration:line-through} .lc.here{border-color:var(--gold);box-shadow:0 0 0 2px rgba(255,179,71,.4)}
+.locs.pick{max-height:38vh;overflow:auto;width:100%}
+.targets{display:flex;flex-wrap:wrap;gap:8px;width:100%} .opts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%} .opts.sent{opacity:.4;pointer-events:none}
+.reveal-r{display:flex;gap:14px;align-items:center;margin:6px 0 10px;padding:12px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.05)}
+.reveal-r.spy{border-color:rgba(255,93,115,.55)} .reveal-r.town{border-color:rgba(95,211,154,.55)}
+.reveal-r img{width:80px;aspect-ratio:2/3;object-fit:cover;border-radius:9px;flex:none} .reveal-r h2{margin:2px 0;font-family:var(--display);font-weight:400} .reveal-r p{margin:2px 0}
+.reveal-r details{font-size:13px;color:var(--dim);margin-top:4px}
+.pts{font-weight:800;color:var(--gold-2)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

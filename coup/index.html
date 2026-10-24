@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#14070a">
+<title>Coup · Table Night</title>
+<meta name="description" content="Coup for 2–10 players on your phones — bluff, challenge, and be the last one standing. Reformation factions and Inquisitor included.">
+<meta property="og:title" content="Coup — join my game">
+<meta property="og:description" content="Tap the link, enter your name, and lie to your friends.">
+<meta property="og:image" content="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="../shared/kit.css?v=1">
+<style>
+/* Layout: the claim in play at the top, the players with coins and influence, the log, your cards and moves in the dock. */
+:root{--bg:#120507;--bg2:#24090e;--panel:rgba(44,12,18,.82);--line:rgba(255,255,255,.13);--ink:#f8efe2;--dim:#d0b9b0;--gold:#f2c14e;--gold-2:#ffe39a;
+  --display:"Cinzel",Georgia,serif;--body:"Bricolage Grotesque",system-ui,sans-serif;--num:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:dark;
+  --bgimg:url("art/coup-hero@2x.webp?v=1");--dockbg:rgba(20,6,9,.94)}
+.title{font-family:var(--display);font-weight:900;letter-spacing:.04em}
+.panel{background:rgba(36,10,15,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sheet{background:var(--bg2)} .toast{background:var(--bg2)}
+.fx-banner{background:rgba(20,6,9,.93);border-color:rgba(242,193,78,.35)}
+.fx-banner .t{font-family:var(--display);font-weight:900}
+.fx-banner .big{width:min(28vw,110px)}
+.fx-banner.good{border-color:#5fd39a;box-shadow:0 0 50px rgba(95,211,154,.4),0 30px 80px rgba(0,0,0,.7)}
+.fx-banner.bad{border-color:#e5484d;box-shadow:0 0 50px rgba(229,72,77,.45),0 30px 80px rgba(0,0,0,.7)}
+.cc{position:relative;width:var(--cw,96px);aspect-ratio:2/3;border-radius:10px;overflow:hidden;flex:none;background:#000;box-shadow:0 0 0 1.5px rgba(242,193,78,.55),0 6px 16px rgba(0,0,0,.55)}
+.cc img{width:100%;height:100%;object-fit:cover;display:block}
+.cc .cn{position:absolute;left:0;right:0;bottom:0;padding:14px 4px 5px;text-align:center;font-family:var(--display);font-weight:900;font-size:calc(var(--cw,96px) * .13);letter-spacing:.04em;background:linear-gradient(transparent,rgba(0,0,0,.85))}
+.cc.small{--cw:56px} .cc.dead{filter:grayscale(1) brightness(.45)} .cc.dead::after{content:"✖";position:absolute;inset:0;display:grid;place-items:center;font-size:40px;color:#e5484d}
+.cc.pickable{cursor:pointer;box-shadow:0 0 0 2.5px var(--gold),0 0 22px rgba(242,193,78,.45);animation:glow 1.6s infinite} .cc.pickable.on{transform:translateY(-8px);box-shadow:0 0 0 3px #5fd39a,0 0 26px rgba(95,211,154,.6);animation:none}
+@keyframes glow{50%{box-shadow:0 0 0 2.5px var(--gold),0 0 4px rgba(242,193,78,.2)}}
+.fan .c .cc,.fx-welcome .wl-fan .c .cc{--cw:100%;width:100%}
+.mycards{display:flex;gap:10px;justify-content:center;padding:6px 0 2px;--cw:clamp(78px,24vw,104px)} .mycards.pool{flex-wrap:wrap;--cw:clamp(64px,19vw,90px)}
+.claim{display:flex;align-items:center;gap:12px;margin:6px 0 10px;padding:10px 12px;border-radius:16px;background:rgba(242,193,78,.1);border:1px solid rgba(242,193,78,.35);min-height:64px}
+.claim.idle{justify-content:center;background:rgba(255,255,255,.04);border-color:var(--line)}
+.claim .ct{flex:1;min-width:0;font-size:16px;line-height:1.3} .claim .eyebrow{margin-bottom:2px} .claim .blk{margin-top:4px;color:#9fe0bd} .claim .wl{font-size:13px;margin-top:4px}
+.chips{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.chip.out{opacity:.45} .chip.aim{border-color:#e5484d;box-shadow:0 0 0 2px rgba(229,72,77,.4)}
+.chip .mini{display:flex;gap:3px;flex:none} .chip .mini .m,.hist .mini .m{width:20px;height:30px;border-radius:4px;background:linear-gradient(135deg,#6e1520,#2a070c);box-shadow:0 0 0 1px rgba(242,193,78,.6) inset;overflow:hidden}
+.mini .m.up img{width:100%;height:100%;object-fit:cover;filter:grayscale(.7)}
+.coin{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 5px;border-radius:11px;background:radial-gradient(circle at 35% 30%,#ffe9a0,#d9a131 60%,#8a5d12);color:#2a1604;font-weight:800;font-size:13px;box-shadow:0 1px 2px rgba(0,0,0,.6)}
+.me-coins .coin{height:28px;min-width:28px;font-size:16px;border-radius:14px}
+.fac{font-size:13px;padding:1px 6px;border-radius:7px;margin-left:2px} .fac.L{background:rgba(229,72,77,.25);color:#ffb3b5} .fac.R{background:rgba(70,130,255,.25);color:#b6ceff}
+.acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;width:100%}
+.act{all:unset;box-sizing:border-box;cursor:pointer;padding:9px 6px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid var(--line);text-align:center;display:flex;flex-direction:column;gap:2px;min-height:52px;justify-content:center}
+.act b{font-size:15px} .act small{font-size:11.5px;color:var(--dim)} .act.true{border-color:rgba(95,211,154,.55)} .act[disabled]{opacity:.35;pointer-events:none} .act:active{transform:scale(.97)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;width:100%} .opts.sent{opacity:.4;pointer-events:none}
+.targets{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+.log{list-style:none;margin:6px 0 0;padding:8px 12px;border-radius:12px;background:rgba(0,0,0,.25);font-size:13.5px;color:var(--dim);display:flex;flex-direction:column;gap:3px}
+.log li:first-child{color:var(--ink)}
+.hist .h .crown{width:22px;vertical-align:-3px}
+@media (max-width:380px){.acts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

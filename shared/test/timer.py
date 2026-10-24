@@ -12,13 +12,13 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-HOOK = {"wizard": "__wiz", "lodestone": "__lode", "marvels": "__mar", "avalon": "__ava", "incan": "__inc", "unoflip": "__uno", "nomercy": "__uno", "nimmt": "__nim", "skullking": "__sk", "kingscup": "__kc", "ridebus": "__rb"}[GAME]
+HOOK = {"wizard": "__wiz", "lodestone": "__lode", "marvels": "__mar", "avalon": "__ava", "incan": "__inc", "unoflip": "__uno", "nomercy": "__uno", "nimmt": "__nim", "skullking": "__sk", "kingscup": "__kc", "ridebus": "__rb", "coup": "__coup", "spyfall": "__spy", "codenames": "__cn"}[GAME]
 ROOT = Path(__file__).resolve().parents[2]
 if GAME == "wizard":
     PLAN = open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0]
 else:
     PLAN = open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0]
-if GAME in ("nimmt", "skullking", "kingscup", "ridebus"): PLAN = f"() => {{ const p = ({PLAN})(); return p ? p.a : null; }}"
+if GAME in ("nimmt", "skullking", "kingscup", "ridebus", "coup", "spyfall", "codenames"): PLAN = f"() => {{ const p = ({PLAN})(); return p ? p.a : null; }}"
 ACT = f"a => {{ delete a.from; window.{HOOK}.room.act(a); }}"
 J = f"window.{HOOK}"
 
@@ -38,8 +38,8 @@ def main():
         link = host.inner_text("#link")
         for pg, n in zip(pages[1:], NM[1:]):
             pg.goto(link); pg.fill("#nm", n); pg.click("text=Join game")
-        host.wait_for_selector(f"text=Players · {len(NM)}/{ {'marvels': 7, 'avalon': 10, 'incan': 8, 'unoflip': 10, 'nomercy': 6, 'nimmt': 10, 'skullking': 8, 'kingscup': 12, 'ridebus': 10, 'wizard': 8}.get(GAME, 6) }", timeout=30000)
-        if GAME == "avalon": host.evaluate(f"() => {J}.room.settings({{ timer: 30 }})")   # Avalon's shortest button is 1 min; the test uses 30 s
+        host.wait_for_selector(f"text=Players · {len(NM)}/{ {'marvels': 7, 'avalon': 10, 'incan': 8, 'unoflip': 10, 'nomercy': 6, 'nimmt': 10, 'skullking': 8, 'kingscup': 12, 'ridebus': 10, 'wizard': 8, 'coup': 10, 'spyfall': 10, 'codenames': 12}.get(GAME, 6) }", timeout=30000)
+        if GAME in ("avalon", "codenames"): host.evaluate(f"() => {J}.room.settings({{ timer: 30 }})")   # Avalon's shortest button is 1 min; the test uses 30 s
         else: host.click('[data-act="timer"][data-v="30"], [data-k="timer"][data-v="30"]')
         time.sleep(1)
         assert all(p.evaluate(f"() => {J}.S.lobby.settings.timer") == 30 for p in pages), "timer setting not shared"

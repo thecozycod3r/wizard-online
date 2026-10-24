@@ -12,13 +12,13 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc", "unoflip": "window.__uno", "nomercy": "window.__uno", "nimmt": "window.__nim", "skullking": "window.__sk", "kingscup": "window.__kc", "ridebus": "window.__rb"}[GAME]
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc", "unoflip": "window.__uno", "nomercy": "window.__uno", "nimmt": "window.__nim", "skullking": "window.__sk", "kingscup": "window.__kc", "ridebus": "window.__rb", "coup": "window.__coup", "spyfall": "window.__spy", "codenames": "window.__cn"}[GAME]
 ROOT = Path(__file__).resolve().parents[2]
 PLAN = (open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0] if GAME == "wizard"
         else open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0])
 # kit games' PLAN returns {a: action, taps: [...]}; these suites want the action itself
-if GAME in ("nimmt", "skullking", "kingscup", "ridebus"): PLAN = f"() => {{ const p = ({PLAN})(); return p ? p.a : null; }}"
-MAXP = {"marvels": 7, "avalon": 10, "incan": 8, "unoflip": 10, "nomercy": 6, "nimmt": 10, "skullking": 8, "kingscup": 12, "ridebus": 10, "wizard": 8}.get(GAME, 6)
+if GAME in ("nimmt", "skullking", "kingscup", "ridebus", "coup", "spyfall", "codenames"): PLAN = f"() => {{ const p = ({PLAN})(); return p ? p.a : null; }}"
+MAXP = {"marvels": 7, "avalon": 10, "incan": 8, "unoflip": 10, "nomercy": 6, "nimmt": 10, "skullking": 8, "kingscup": 12, "ridebus": 10, "wizard": 8, "coup": 10, "spyfall": 10, "codenames": 12}.get(GAME, 6)
 results = []
 
 def check(name, ok, detail=""):

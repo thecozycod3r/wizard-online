@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#101218">
+<title>Codenames · Table Night</title>
+<meta name="description" content="Codenames for 4–12 players on your phones — spymasters give one-word clues, teams race to find their agents.">
+<meta property="og:title" content="Codenames — join my game">
+<meta property="og:description" content="Tap the link, enter your name, pick a team.">
+<meta property="og:image" content="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="../shared/kit.css?v=1">
+<style>
+/* Layout: team scores up top, the clue, the 5×5 board; the clue box / guess buttons in the dock. */
+:root{--bg:#0b0d12;--bg2:#161a24;--panel:rgba(24,28,40,.84);--line:rgba(255,255,255,.13);--ink:#f4f1ea;--dim:#b4b8c4;--gold:#f2c14e;--gold-2:#ffe39a;
+  --red:#e5484d;--blue:#3e7bfa;--paper:#efe4cc;
+  --display:"Oswald",system-ui,sans-serif;--body:"Bricolage Grotesque",system-ui,sans-serif;--num:"Oswald",system-ui,sans-serif;color-scheme:dark;
+  --bgimg:url("art/cn-hero@2x.webp?v=1");--dockbg:rgba(10,12,18,.94)}
+.title{font-family:var(--display);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.panel{background:rgba(20,24,34,.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sheet{background:var(--bg2)} .toast{background:var(--bg2)}
+.fx-banner{background:rgba(10,12,18,.93)} .fx-banner .t{font-family:var(--display);text-transform:uppercase;letter-spacing:.04em}
+.fx-banner .big{width:min(28vw,110px)} .fx-banner .big img{width:100%;border-radius:12px;display:block}
+.fx-banner.red{border-color:var(--red);box-shadow:0 0 50px rgba(229,72,77,.45),0 30px 80px rgba(0,0,0,.7)} .fx-banner.blue{border-color:var(--blue);box-shadow:0 0 50px rgba(62,123,250,.45),0 30px 80px rgba(0,0,0,.7)}
+.fx-banner.bad{border-color:#888}
+.tcard{width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;box-shadow:0 0 0 2px rgba(255,255,255,.25),0 8px 20px rgba(0,0,0,.6)} .tcard img{width:100%;height:100%;object-fit:cover;display:block}
+.rnd.red{color:#ff9a9d} .rnd.blue{color:#9ab9ff} .rnd{margin-right:12px}
+#table.turn-red .bar{box-shadow:inset 0 -3px 0 var(--red)} #table.turn-blue .bar{box-shadow:inset 0 -3px 0 var(--blue)}
+.board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:4px 0 10px}
+.w{all:unset;box-sizing:border-box;position:relative;aspect-ratio:1.45;border-radius:8px;background:var(--paper);color:#1d1a14;display:grid;place-items:center;text-align:center;overflow:hidden;
+  font-family:var(--display);font-weight:500;text-transform:uppercase;font-size:clamp(8.5px,2.55vw,17px);letter-spacing:.01em;line-height:1.05;padding:2px;box-shadow:0 2px 0 #b9a77f,0 3px 8px rgba(0,0,0,.35);cursor:default}
+.w span{position:relative;z-index:1;word-break:break-word;hyphens:auto}
+.w[data-act]{cursor:pointer} .w[data-act]:active{transform:scale(.96)}
+.w.sel{box-shadow:0 0 0 3px var(--gold),0 0 18px rgba(242,193,78,.6)}
+.w em{position:absolute;top:2px;right:3px;font-style:normal;font-size:9px;font-weight:700;color:#7a5a12;font-family:var(--body);letter-spacing:.05em}
+.w.open img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 25%}
+.w.open span{align-self:end;margin-bottom:2px;padding:1px 4px;border-radius:4px;background:rgba(0,0,0,.55);color:#fff;font-size:.8em}
+.w.open.red{box-shadow:0 0 0 2px var(--red)} .w.open.blue{box-shadow:0 0 0 2px var(--blue)} .w.open.assassin{box-shadow:0 0 0 2px #000}
+.spyv .w.k-red{background:#f2b8b5;box-shadow:inset 0 0 0 3px var(--red)} .spyv .w.k-blue{background:#b9cdfa;box-shadow:inset 0 0 0 3px var(--blue)}
+.spyv .w.k-assassin{background:#2a2a2a;color:#fff;box-shadow:inset 0 0 0 3px #000} .spyv .w.k-bystander{background:#e6dcc6}
+.spyv .w.open{opacity:.55}
+.w.flip{animation:wflip .55s} @keyframes wflip{0%{transform:rotateY(90deg)}100%{transform:none}}
+.clue{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:2px 0 8px;padding:8px 12px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05)}
+.clue.red{border-color:rgba(229,72,77,.6)} .clue.blue{border-color:rgba(62,123,250,.6)}
+.clue .cw{font-family:var(--display);font-size:26px;text-transform:uppercase;letter-spacing:.06em} .clue .cn{font-family:var(--display);font-size:26px;color:var(--gold-2)} .clue .muted{font-size:13px}
+.setup-cn h2{font-family:var(--display);text-transform:uppercase;margin:6px 0 2px} .teams{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.tpanel{border-radius:14px;padding:10px;border:1px solid var(--line);display:flex;flex-direction:column;gap:8px} .tpanel.red{background:rgba(229,72,77,.14);border-color:rgba(229,72,77,.5)} .tpanel.blue{background:rgba(62,123,250,.14);border-color:rgba(62,123,250,.5)}
+.tpanel .th{font-family:var(--display);text-transform:uppercase;letter-spacing:.08em;font-size:18px} .tpanel ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;flex:1}
+.tpanel li{font-weight:700;font-size:15px;display:flex;flex-direction:column} .tpanel li small{font-weight:500;color:var(--dim);font-size:12px}
+.cluebox{display:flex;flex-direction:column;gap:8px;width:100%} .cluebox input{font:inherit;font-family:var(--display);font-size:22px;text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.07);color:var(--ink)}
+.seg.nums{display:grid;grid-template-columns:repeat(10,minmax(0,1fr))} .seg.nums button{padding:8px 0}
+.myrole{font-size:12px;font-weight:800;padding:3px 8px;border-radius:8px} .myrole.red{background:rgba(229,72,77,.25)} .myrole.blue{background:rgba(62,123,250,.25)}
+b.red{color:#ff9a9d} b.blue{color:#9ab9ff}
+.opts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:100%}
+.winbox{display:flex;gap:12px;align-items:center;margin-bottom:10px} .winbox img{width:90px;border-radius:12px} .winbox h3{margin:0;font-family:var(--display);text-transform:uppercase} .winbox p{margin:2px 0}
+.dotk{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:3px;background:#ccc} .dotk.red{background:var(--red)} .dotk.blue{background:var(--blue)} .dotk.assassin{background:#000;border:1px solid #fff}
+.roster{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.rt{display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:12px;border:1px solid var(--line);font-size:14px} .rt.red{background:rgba(229,72,77,.1)} .rt.blue{background:rgba(62,123,250,.1)}
+.rp{display:flex;align-items:center;gap:4px;flex-wrap:wrap} .rp.on{font-weight:800}
+@media (min-width:700px){.board{gap:8px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

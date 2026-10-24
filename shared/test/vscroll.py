@@ -9,7 +9,7 @@ import sys
 from playwright.sync_api import sync_playwright
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8765/").rstrip("/") + "/"
-HOOK = {"wizard": "__wiz", "lodestone": "__lode", "marvels": "__mar", "avalon": "__ava", "incan": "__inc", "unoflip": "__uno", "nomercy": "__uno", "nimmt": "__nim", "skullking": "__sk", "kingscup": "__kc", "ridebus": "__rb"}
+HOOK = {"wizard": "__wiz", "lodestone": "__lode", "marvels": "__mar", "avalon": "__ava", "incan": "__inc", "unoflip": "__uno", "nomercy": "__uno", "nimmt": "__nim", "skullking": "__sk", "kingscup": "__kc", "ridebus": "__rb", "coup": "__coup", "spyfall": "__spy", "codenames": "__cn"}
 results = []
 
 def check(name, ok, detail=""):

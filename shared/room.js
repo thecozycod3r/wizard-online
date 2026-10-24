@@ -11,7 +11,8 @@
 // timers(G) → null | { ms, action }: a follow-up the table runner applies by itself (e.g. Wizard's trick pause).
 // Turn timer: settings.timer (seconds: 30 / 60 / 120). When it runs out, the runner plays engine.smartAction (or
 // autoAction) for whoever the game is waiting on. engine.timerKey(G) says when the clock should restart.
-// Leaving: in the lobby the seat is removed; mid-game a bot takes the seat (plays smartAction about once a second) so the
+// Leaving: in the lobby the seat is removed; mid-game a bot takes the seat (plays smartAction about once a second — or
+// engine.botAction(G, pid, bots) when a game needs to know which other seats are bots) so the
 // game can finish. The player can take the seat back from any device with "This is me".
 
 import { openBus, newCode, normCode } from "./net.js";
@@ -87,7 +88,7 @@ export function createRoom(cfg) {
     if (!H?.G || !H.bots?.length || H.G.phase === "gameOver") return;
     for (const pid of engine.waitingOn(H.G).filter(p => H.bots.includes(p))) {
       let a = null;
-      try { a = (engine.smartAction || engine.autoAction)(H.G, pid); } catch { a = null; }
+      try { a = engine.botAction ? engine.botAction(H.G, pid, H.bots) : (engine.smartAction || engine.autoAction)(H.G, pid); } catch { a = null; }
       if (a) { applyAct(pid, a, true, true); return; }
     }
   }
