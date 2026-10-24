@@ -134,3 +134,5 @@ td:first-child,th:first-child{text-align:left}
 .sci{display:none}
 @media (max-width:400px){ .lvt{display:none} .sci{display:inline} .sct{display:none} .knight{padding:8px;gap:7px} .knight .nm{font-size:14px} }
 @media (prefers-reduced-motion:reduce){.fx-banner,.fx-welcome,.rolecard .crest,.reveal .rv,.qreveal .c{animation-duration:.01s!important}}
+
+/* no visible scrollbars anywhere (scrolling still works) */ *{scrollbar-width:none} *::-webkit-scrollbar{display:none;width:0;height:0}

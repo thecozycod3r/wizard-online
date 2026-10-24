@@ -374,6 +374,7 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;bac
 @media (min-width:700px){ .choice{min-height:128px} .choice .pa{width:72px;height:72px} }
 @media (orientation:landscape) and (max-height:540px){ .choice{min-height:84px} .choice .pa{width:46px;height:46px} }
 @media (prefers-reduced-motion:reduce){ body::before,.pc.new,.pc.a::before,.choice.torch .pa,.hz .h.warn .pa,.fan .c,.fx-banner .rays,.fx-banner .img.gate,.vign,.status.you{animation:none!important} }
+/* no visible scrollbars anywhere (scrolling still works) */ *{scrollbar-width:none} *::-webkit-scrollbar{display:none;width:0;height:0}
 </style>
 </head>
 <body>

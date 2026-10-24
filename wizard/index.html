@@ -299,6 +299,7 @@ td:first-child,th:first-child{text-align:left}
 /* no text selection / copy menu from long presses on the game table; Rules text and the share link stay selectable */
 #app{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #app .sheetbody,#app input,#app #link,#app code{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+/* no visible scrollbars anywhere (scrolling still works) */ *{scrollbar-width:none} *::-webkit-scrollbar{display:none;width:0;height:0}
 </style>
 </head>
 <body>
