@@ -22,14 +22,14 @@ with sync_playwright() as pw:
         for g, h in HOOK.items():
             J = f"window.{h}"
             c = brs[eng].new_context(**opts); host = c.new_page()
-            host.goto(BASE + g + "/"); host.fill("#nm", "Dhruv"); host.click("text=Start a game"); host.wait_for_selector("#link")
+            host.goto(BASE + g + "/"); host.fill("#nm", "Dhruv"); host.evaluate("document.fonts.ready.then(() => 0)"); host.click("text=Start a game"); host.wait_for_selector("#link")
             link = host.inner_text("#link"); host.wait_for_timeout(600)
             room = host.evaluate("() => { const p = document.querySelector('.page'); if (!p) return 0; p.scrollTop = 99999; return p.scrollTop; }")
             if room < 40: print(f"     {dev} {g}: lobby fits without scrolling ({room}px)"); c.close(); continue
             host.wait_for_timeout(400)
             guests = []
             for n in ["Anya", "Henry"]:
-                gc = brs[eng].new_context(**opts); gp = gc.new_page(); gp.goto(link); gp.fill("#nm", n); gp.click("text=Join game"); guests.append(gc)
+                gc = brs[eng].new_context(**opts); gp = gc.new_page(); gp.goto(link); gp.fill("#nm", n); gp.evaluate("document.fonts.ready.then(() => 0)"); gp.click("text=Join game"); guests.append(gc)
             host.wait_for_selector("text=Players · 3/", timeout=20000)
             host.evaluate(f"() => {J}.room.settings({{ timer: 60 }})"); host.wait_for_timeout(1500)
             after = host.evaluate("() => document.querySelector('.page')?.scrollTop || 0")

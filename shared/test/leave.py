@@ -63,7 +63,7 @@ with sync_playwright() as pw:
     pg["Dhruv"].goto(BASE); pg["Dhruv"].fill("#nm", "Dhruv"); pg["Dhruv"].click("text=Start a game"); pg["Dhruv"].wait_for_selector("#link")
     link = pg["Dhruv"].inner_text("#link")
     for n in names[1:]:
-        pg[n].goto(link); pg[n].fill("#nm", n); pg[n].click("text=Join game")
+        pg[n].goto(link); pg[n].fill("#nm", n); pg[n].evaluate("document.fonts.ready.then(() => 0)"); pg[n].click("text=Join game")
     pg["Dhruv"].wait_for_selector(f"text=Players · {len(names)}/{MAXP}", timeout=30000)
     if GAME == "wizard": pg["Dhruv"].select_option("#rounds", "3")
     pg["Dhruv"].click('[data-act="start"]')

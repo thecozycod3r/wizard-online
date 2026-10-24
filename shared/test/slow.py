@@ -33,10 +33,10 @@ with sync_playwright() as pw:
     cdp.send("Network.emulateNetworkConditions", {"offline": False, "latency": 150, "downloadThroughput": 1.6e6 / 8, "uploadThroughput": 750e3 / 8})
     got = [0]
     cdp.on("Network.loadingFinished", lambda e: got.__setitem__(0, got[0] + e.get("encodedDataLength", 0)))
-    h = pg["Dhruv"]; h.goto(BASE); h.fill("#nm", "Dhruv"); h.click("text=Start a game"); h.wait_for_selector("#link"); link = h.inner_text("#link")
+    h = pg["Dhruv"]; h.goto(BASE); h.fill("#nm", "Dhruv"); h.evaluate("document.fonts.ready.then(() => 0)"); h.click("text=Start a game"); h.wait_for_selector("#link"); link = h.inner_text("#link")
     t0 = time.time(); a.goto(link, wait_until="commit"); a.wait_for_selector("#nm", timeout=60000); t_form = time.time() - t0
-    a.fill("#nm", "Anya"); a.click("text=Join game")
-    for n in names[2:]: pg[n].goto(link); pg[n].fill("#nm", n); pg[n].click("text=Join game")
+    a.fill("#nm", "Anya"); a.evaluate("document.fonts.ready.then(() => 0)"); a.click("text=Join game")
+    for n in names[2:]: pg[n].goto(link); pg[n].fill("#nm", n); pg[n].evaluate("document.fonts.ready.then(() => 0)"); pg[n].click("text=Join game")
     h.wait_for_selector(f"text=Players · {len(names)}/", timeout=60000)
     h.click('[data-act="start"]')
     t1 = time.time(); a.wait_for_selector(".bar", timeout=60000); t_table = time.time() - t1

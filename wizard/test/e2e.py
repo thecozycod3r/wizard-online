@@ -39,7 +39,7 @@ def main():
         host.on("pageerror", lambda e: errors.append(("host", str(e))))
         host.goto(BASE)
         host.fill("#nm", "Dhruv")
-        host.click("text=Start a game")
+        host.evaluate("document.fonts.ready.then(() => 0)"); host.click("text=Start a game")
         host.wait_for_selector("text=Room code")
         link = host.inner_text("#link")
         print("link", link)
@@ -49,7 +49,7 @@ def main():
             g.on("pageerror", lambda e, n=name: errors.append((n, str(e))))
             g.goto(link)
             g.fill("#nm", name)
-            g.click("text=Join game")
+            g.evaluate("document.fonts.ready.then(() => 0)"); g.click("text=Join game")
             guests.append(g)
         for g in guests:
             g.wait_for_selector("text=Waiting for the host to start", timeout=30000)

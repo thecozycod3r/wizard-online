@@ -50,12 +50,12 @@ with sync_playwright() as pw:
         for g, (J, minp) in GAMES.items():
             host = ctx.new_page(); host.on("pageerror", lambda e: errs.append(str(e)))
             host.goto(BASE + g + "/"); sweep(host, f"{dev} {g} landing"); rules(host, f"{dev} {g} landing")
-            host.fill("#nm", "Dhruv"); host.click("text=Start a game"); host.wait_for_selector("#link", timeout=20000)
+            host.fill("#nm", "Dhruv"); host.evaluate("document.fonts.ready.then(() => 0)"); host.click("text=Start a game"); host.wait_for_selector("#link", timeout=20000)
             link = host.inner_text("#link")
             guests = []
             for i in range(minp - 1):
                 gc = brs[eng].new_context(**opts); gp = gc.new_page(); gp.on("pageerror", lambda e: errs.append(str(e)))
-                gp.goto(link); gp.fill("#nm", ["Anya", "Henry", "Freya", "Omar"][i]); gp.click("text=Join game"); guests.append(gc)
+                gp.goto(link); gp.fill("#nm", ["Anya", "Henry", "Freya", "Omar"][i]); gp.evaluate("document.fonts.ready.then(() => 0)"); gp.click("text=Join game"); guests.append(gc)
             host.wait_for_selector(f"text=Players · {minp}/", timeout=30000)
             sweep(host, f"{dev} {g} lobby"); rules(host, f"{dev} {g} lobby")
             host.click('[data-act="start"]'); host.wait_for_selector(".bar", timeout=20000)

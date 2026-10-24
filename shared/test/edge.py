@@ -40,23 +40,23 @@ with sync_playwright() as pw:
 
     # 1. bogus link: no crash, friendly waiting message
     c0, p0 = page("bogus")
-    p0.goto(BASE + "?g=zzzzzz"); p0.fill("#nm", "Ghost"); p0.click("text=Join game")
+    p0.goto(BASE + "?g=zzzzzz"); p0.fill("#nm", "Ghost"); p0.evaluate("document.fonts.ready.then(() => 0)"); p0.click("text=Join game")
     check("unknown table link shows a waiting message", wait(lambda: "waiting for the table" in p0.inner_text("body").lower(), 15))
     c0.close()
 
     # host + joiners up to the table's maximum, one with an HTML name
     hc, host = page("host", "iPhone 13")
-    host.goto(BASE); host.fill("#nm", "Dhruv"); host.click("text=Start a game"); host.wait_for_selector("#link")
+    host.goto(BASE); host.fill("#nm", "Dhruv"); host.evaluate("document.fonts.ready.then(() => 0)"); host.click("text=Start a game"); host.wait_for_selector("#link")
     link = host.inner_text("#link")
     names = ["Anya", "<img src=x onerror=alert(1)>", "Freya", "Omar", "Lena", "Kofi", "Maya", "Ravi", "Zoe", "Ivan", "Nia"][:MAX - 1]
     joiners = []
     for n in names:
-        c, p = page(n); p.goto(link); p.fill("#nm", n); p.click("text=Join game"); joiners.append((c, p))
+        c, p = page(n); p.goto(link); p.fill("#nm", n); p.evaluate("document.fonts.ready.then(() => 0)"); p.click("text=Join game"); joiners.append((c, p))
     check(f"{MAX} players can sit at the table", wait(lambda: f"players · {MAX}/{MAX}" in host.inner_text("body").lower(), 30))
     check("HTML in a name is shown as text, not run", host.locator("img[src='x']").count() == 0 and "&lt;img" not in host.inner_text("body") and "<img src=x" in host.inner_text("body"))
 
     # 2. one more player is refused
-    c7, p7 = page("seventh"); p7.goto(link); p7.fill("#nm", "Seventh"); p7.click("text=Join game")
+    c7, p7 = page("seventh"); p7.goto(link); p7.fill("#nm", "Seventh"); p7.evaluate("document.fonts.ready.then(() => 0)"); p7.click("text=Join game")
     check(f"player {MAX + 1} gets 'table is full'", wait(lambda: "full" in p7.inner_text("body").lower(), 15))
     c7.close()
 
@@ -78,7 +78,7 @@ with sync_playwright() as pw:
     if GAME == "wizard": host.select_option("#rounds", "3")
     host.click('[data-act="start"]')
     for _, p in joiners: p.wait_for_selector(".bar", timeout=20000)
-    cn, pn = page("late"); pn.goto(link); pn.fill("#nm", "Latecomer"); pn.click("text=Join game")
+    cn, pn = page("late"); pn.goto(link); pn.fill("#nm", "Latecomer"); pn.evaluate("document.fonts.ready.then(() => 0)"); pn.click("text=Join game")
     check("a newcomer after the start sees 'Which player are you?'", wait(lambda: "which player are you?" in pn.inner_text("body").lower(), 20))
     check("…and no seat was added", host.evaluate(f"() => {J}.S.view.players.length") == MAX - 1)
     cn.close()

@@ -36,12 +36,12 @@ with sync_playwright() as pw:
     errs = []
     lctx = cr.new_context(viewport={"width": 1280, "height": 800}); laptop = lctx.new_page()
     laptop.on("pageerror", lambda e: errs.append(("laptop", str(e))))
-    laptop.goto(BASE); laptop.fill("#nm", "Dhruv"); laptop.click("text=Start a game"); laptop.wait_for_selector("#link")
+    laptop.goto(BASE); laptop.fill("#nm", "Dhruv"); laptop.evaluate("document.fonts.ready.then(() => 0)"); laptop.click("text=Start a game"); laptop.wait_for_selector("#link")
     link = laptop.inner_text("#link")
     guests = []
     for n in ["Anya", "Henry", "Freya"]:
         g = cr.new_context(**pw.devices["Pixel 7"]).new_page(); g.on("pageerror", lambda e, n=n: errs.append((n, str(e))))
-        g.goto(link); g.fill("#nm", n); g.click("text=Join game"); guests.append(g)
+        g.goto(link); g.fill("#nm", n); g.evaluate("document.fonts.ready.then(() => 0)"); g.click("text=Join game"); guests.append(g)
     for g in guests: g.wait_for_selector("text=Waiting for the host to start", timeout=30000)
     laptop.wait_for_selector("text=Players · 4/6", timeout=20000)
     laptop.click("text=Start game")
@@ -63,7 +63,7 @@ with sync_playwright() as pw:
         bots(guests, lambda: False, 1.5); step_with_playfor()
     guests[0].screenshot(path=SH + "after-takeover.png")
     phone = cr.new_context(**pw.devices["iPhone 13"]).new_page(); phone.on("pageerror", lambda e: errs.append(("phone", str(e))))
-    phone.goto(link); phone.fill("#nm", "Dhruv"); phone.click("text=Join game")
+    phone.goto(link); phone.fill("#nm", "Dhruv"); phone.evaluate("document.fonts.ready.then(() => 0)"); phone.click("text=Join game")
     phone.wait_for_selector("text=Which player are you?", timeout=20000); phone.screenshot(path=SH + "claim.png")
     phone.locator('li:has-text("Dhruv") [data-act="claim"]').click()
     phone.wait_for_selector(".bar", timeout=20000)

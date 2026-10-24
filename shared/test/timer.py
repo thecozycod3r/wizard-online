@@ -34,10 +34,10 @@ def main():
             pg.on("pageerror", lambda e, n=n: errs.append((n, str(e))))
             ctxs.append(c); pages.append(pg)
         host, anya, henry, freya = pages[:4]
-        host.goto(BASE); host.fill("#nm", "Dhruv"); host.click("text=Start a game"); host.wait_for_selector("#link")
+        host.goto(BASE); host.fill("#nm", "Dhruv"); host.evaluate("document.fonts.ready.then(() => 0)"); host.click("text=Start a game"); host.wait_for_selector("#link")
         link = host.inner_text("#link")
         for pg, n in zip(pages[1:], NM[1:]):
-            pg.goto(link); pg.fill("#nm", n); pg.click("text=Join game")
+            pg.goto(link); pg.fill("#nm", n); pg.evaluate("document.fonts.ready.then(() => 0)"); pg.click("text=Join game")
         host.wait_for_selector(f"text=Players · {len(NM)}/{ {'marvels': 7, 'avalon': 10, 'incan': 8, 'unoflip': 10, 'nomercy': 6, 'nimmt': 10, 'skullking': 8, 'kingscup': 12, 'ridebus': 10, 'wizard': 8, 'coup': 10, 'spyfall': 10, 'codenames': 12}.get(GAME, 6) }", timeout=30000)
         if GAME in ("avalon", "codenames"): host.evaluate(f"() => {J}.room.settings({{ timer: 30 }})")   # Avalon's shortest button is 1 min; the test uses 30 s
         else: host.click('[data-act="timer"][data-v="30"], [data-k="timer"][data-v="30"]')

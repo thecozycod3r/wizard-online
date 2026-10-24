@@ -44,10 +44,10 @@ with sync_playwright() as pw:
     for n in NAMES:
         p = cr.new_context(**pw.devices["Pixel 7"]).new_page(); p.on("pageerror", lambda e, n=n: errs.append((n, str(e)))); pages.append(p)
     host = pages[0]
-    host.goto(BASE); host.evaluate(WATCH); host.fill("#nm", "Dhruv"); host.click("text=Start a game"); host.wait_for_selector("#link")
+    host.goto(BASE); host.evaluate(WATCH); host.fill("#nm", "Dhruv"); host.evaluate("document.fonts.ready.then(() => 0)"); host.click("text=Start a game"); host.wait_for_selector("#link")
     link = host.inner_text("#link")
     for p, n in zip(pages[1:], NAMES[1:]):
-        p.goto(link); p.evaluate(WATCH); p.fill("#nm", n); p.click("text=Join game")
+        p.goto(link); p.evaluate(WATCH); p.fill("#nm", n); p.evaluate("document.fonts.ready.then(() => 0)"); p.click("text=Join game")
     host.wait_for_selector(f"text=Players · {len(NAMES)}/", timeout=30000)
     if GAME == "wizard": host.select_option("#rounds", "3")
     host.click('[data-act="start"]')

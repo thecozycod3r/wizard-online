@@ -106,10 +106,10 @@ with sync_playwright() as pw:
             pg[n].add_init_script(f"document.addEventListener('DOMContentLoaded', () => {{ const s = document.createElement('style'); s.textContent = 'html{{-webkit-text-size-adjust:{pct}%!important;text-size-adjust:{pct}%!important}}'; document.head.append(s); }})")
     names = [s[0] for s in SEATS]; DEV = {s[0]: s[1] for s in SEATS}
     h = pg[names[0]]
-    h.goto(BASE); h.fill("#nm", names[0]); h.click("text=Start a game"); h.wait_for_selector("#link")
+    h.goto(BASE); h.fill("#nm", names[0]); h.evaluate("document.fonts.ready.then(() => 0)"); h.click("text=Start a game"); h.wait_for_selector("#link")
     link = h.inner_text("#link")
     for n in names[1:]:
-        pg[n].goto(link); pg[n].fill("#nm", n); pg[n].click("text=Join game")
+        pg[n].goto(link); pg[n].fill("#nm", n); pg[n].evaluate("document.fonts.ready.then(() => 0)"); pg[n].click("text=Join game")
     h.wait_for_selector(f"text=Players · {len(names)}/", timeout=40000)
     for n in names: probe(n, DEV[n], pg[n], "lobby")
     if GAME == "wizard": h.select_option("#rounds", "3")
