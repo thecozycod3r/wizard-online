@@ -9,7 +9,7 @@ const pick = { type: null, keep: [] };
 const T = startTable({
   path: "coup", letter: "U", engine: E, hook: "__coup", title: "Coup", prefix: "coup-", min: E.MIN_PLAYERS, max: E.MAX_PLAYERS,
   defaults: { deck: "classic", factions: "off", window: 12, timer: 30 },
-  rules: RULES, eyebrow: "Table Night · Bluffing · 2–10 players",
+  rules: (s, n) => RULES(E.tableSettings(s, n ?? 3), s.factions === "on"), eyebrow: "Table Night · Bluffing · 2–10 players",
   blurb: "Two secret characters, a pile of coins, and a court full of liars. Claim any character's power — true or not — and call out everyone else's bluffs. Lose both cards and you're out. Last one standing rules.",
   confetti: ["#f2c14e", "#fff1b0", "#b3202a", "#1b0d10", "#fff"],
   hero: () => `<div class="fan">${["duke", "assassin", "contessa"].map((r, i) => `<div class="c" style="--r:${(i - 1) * 12}deg;--y:${Math.abs(i - 1) * 10}px;--d:${i * .1}s">${card(r)}</div>`).join("")}</div>`,

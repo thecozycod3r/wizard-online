@@ -36,10 +36,12 @@ export const swapRole = G => (G.settings.deck === "inquisitor" ? "inquisitor" : 
 const roleOf = (G, r) => (r === "SWAP" ? swapRole(G) : r);
 export const roles = G => ["duke", "assassin", "captain", swapRole(G), "contessa"];
 
+// what a table of n players actually plays, from the lobby's settings (factions need 3+ players)
+export const tableSettings = (settings = {}, n) => ({ deck: settings.deck === "inquisitor" ? "inquisitor" : "classic", factions: settings.factions === "on" && n >= 3 ? "on" : "off", window: [8, 12, 20].includes(+settings.window) ? +settings.window : 12 });
 export function newGame(players, settings = {}) {
   const n = players.length;
   if (n < MIN_PLAYERS || n > MAX_PLAYERS) throw new Error("Coup needs 2 to 10 players.");
-  const s = { deck: settings.deck === "inquisitor" ? "inquisitor" : "classic", factions: settings.factions === "on" && n >= 3 ? "on" : "off", window: [8, 12, 20].includes(+settings.window) ? +settings.window : 12 };
+  const s = tableSettings(settings, n);
   const G = {
     v: 1, game: "coup", gameId: Math.random().toString(36).slice(2, 10), seq: 0, n: 0, turns: 0, settings: s,
     players: players.map(p => ({ id: p.id, name: p.name })), cards: {}, coins: {}, faction: {}, deck: [], reserve: 0,

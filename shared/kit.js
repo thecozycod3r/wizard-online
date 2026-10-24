@@ -223,8 +223,9 @@ initAgain(room, `${cfg.path}`);
     const extra = cfg.overlay?.(ctx); if (extra) return extra;
     if (ui.overlay === "leave" && v) return sheet("Leave the game?", `<div class="sheetbody"><p style="margin-top:0">A bot will play your seat for the rest of this game, so everyone else can finish. Changed your mind? Open the same link and tap <b>This is me</b> to take your seat back.</p><div class="row" style="justify-content:center;margin-top:14px"><button class="btn" data-act="leave">Leave the game</button><button class="btn ghost" data-act="close">Stay</button></div></div>`);
     if (ui.overlay === "rules") {
-      // rules may be a function of the table's settings (in a game, the game's; in the lobby, the lobby's)
-      const R = typeof cfg.rules === "function" ? cfg.rules({ ...(cfg.defaults || {}), ...((S.mode === "game" ? v?.settings : S.lobby?.settings) || {}) }) : cfg.rules;
+      // rules may be a function of the table's settings and size (once a game exists, the game's; in the lobby, the lobby's)
+      const g = S.mode !== "lobby" && v ? v : null;
+      const R = typeof cfg.rules === "function" ? cfg.rules({ ...(cfg.defaults || {}), ...((g ? g.settings : S.lobby?.settings) || {}) }, (g || S.lobby)?.players?.length) : cfg.rules;
       const t = [["basics", "How to play"], ["cards", "Cards"], ["full", "Full rules"]].filter(([k]) => R[k]);
       return sheet("Rules", `<div class="tabs" role="tablist">${t.map(([k, l]) => `<button role="tab" aria-selected="${ui.tab === k}" data-act="tab" data-k="${k}">${l}</button>`).join("")}</div><div class="sheetbody guide">${soundRow()}${R[ui.tab] || R.basics}</div>`);
     }
