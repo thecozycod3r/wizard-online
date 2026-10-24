@@ -207,7 +207,7 @@ initAgain(room, `${variant === "flip" ? "unoflip" : "nomercy"}`);
   let hsT = null;
   function render() {
     clearTimeout(hsT);
-    if (S.mode === "game" && HS.busy()) { hsT = setTimeout(render, 150); return; }
+    if (HS.busy()) { hsT = setTimeout(render, 150); return; }
     const sc = document.querySelector(".scroll")?.scrollTop, sb = document.querySelector(".sheetbody")?.scrollTop, hs = HS.save();
     let h = "";
     if (S.mode === "landing") h = viewLanding();
