@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#06261d">
+<title>Kings Cup · Table Night</title>
+<meta name="description" content="Kings Cup (Ring of Fire) for 3–12 players on your phones. Start a table, share the link, play.">
+<meta property="og:title" content="Kings Cup — join my game">
+<meta property="og:description" content="Tap the link, enter your name, and pray you don't draw the 4th King.">
+<meta property="og:image" content="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="../shared/kit.css?v=1">
+<style>
+/* Layout: the cup with a ring of face-down cards, the drawn card and its rule, the players, your Draw / Next button. */
+:root{--bg:#04150f;--bg2:#0a2a20;--panel:rgba(12,48,37,.82);--line:rgba(255,255,255,.13);--ink:#f6f2e6;--dim:#b7cdc2;--gold:#f2c14e;--gold-2:#ffe39a;
+  --display:"Bricolage Grotesque",system-ui,sans-serif;--body:"Bricolage Grotesque",system-ui,sans-serif;--num:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:dark;
+  --bgimg:url("../drinks/art/kings-hero@2x.webp?v=1");--dockbg:rgba(4,22,16,.93)}
+.title{font-weight:800;letter-spacing:-.03em}
+.panel{background:rgba(8,36,28,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sheet{background:var(--bg2)} .toast{background:var(--bg2)}
+.fx-banner{background:rgba(4,22,16,.92);border-color:rgba(242,193,78,.35)}
+.fx-banner .t{font-family:var(--display);font-weight:800;letter-spacing:-.02em}
+.fx-banner .big{width:min(30vw,120px);--cw:100%}
+.fx-banner.king{border-color:var(--gold);box-shadow:0 0 60px rgba(242,193,78,.45),0 30px 80px rgba(0,0,0,.75)}
+.table-c{position:relative;width:min(84vw,340px);aspect-ratio:1;margin:8px auto 4px}
+.ring{position:absolute;inset:0}
+.ring .rc{position:absolute;width:6.5%;aspect-ratio:2/3;border-radius:3px;background:linear-gradient(135deg,#127a5c,#06261d);box-shadow:0 0 0 1px #fff inset,0 2px 4px rgba(0,0,0,.5)}
+.cup{position:absolute;left:50%;top:50%;width:38%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;overflow:hidden;box-shadow:0 0 0 3px rgba(242,193,78,.6),0 0 40px rgba(242,193,78,calc(.15 + var(--fill) * .5))}
+.cup img{width:100%;height:100%;object-fit:cover;display:block}
+.cup .lvl{position:absolute;left:0;right:0;bottom:0;height:calc(var(--fill) * 100%);background:linear-gradient(180deg,rgba(255,200,80,.0),rgba(255,180,40,.45));transition:height .8s}
+.cup.pour{animation:pour .9s cubic-bezier(.3,1.4,.5,1)} @keyframes pour{40%{transform:translate(-50%,-50%) scale(1.15) rotate(-6deg)}}
+.drawn{position:absolute;left:50%;top:50%;--cw:clamp(64px,19vw,92px);transform:translate(12%,-38%) rotate(10deg);z-index:2}
+.rulecard{margin:6px auto 12px;max-width:520px;padding:10px 14px;border-radius:14px;background:rgba(242,193,78,.12);border:1px solid rgba(242,193,78,.4);text-align:center}
+.rulecard .rn{font-weight:800;font-size:20px;color:var(--gold-2)} .rulecard p{margin:4px 0 0;font-size:15px}
+.chip .val{font-size:18px}
+.targets{display:flex;flex-wrap:wrap;gap:8px}
+.cupwin{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:10px} .cupwin img{width:110px;border-radius:50%;box-shadow:0 0 0 3px var(--gold)} .cupwin h3{margin:0;font-size:22px;text-align:center}
+.fan .c .pcard,.fx-welcome .wl-fan .c .pcard{--cw:100%}
+</style>
+<script type="module">import { CSS } from "../drinks/cards.js"; const s = document.createElement("style"); s.textContent = CSS; document.head.append(s);</script>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

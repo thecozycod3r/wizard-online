@@ -1,4 +1,5 @@
 import * as E from "./engine.js";
+import { againButton, initAgain } from "../shared/again.js";
 import { DATA } from "./data.js";
 import { createRoom } from "../shared/room.js";
 import { preload } from "../shared/preload.js";
@@ -21,11 +22,12 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const ui = { overlay: null, tab: "basics", card: null, player: null, leader: null, shown: null };
 let dragging = null, queued = false;
 
-const room = createRoom({
+const room = createRoom({ letter: "M",
   prefix: "mar-", engine: E, minPlayers: 3, maxPlayers: 7, defaults: { timer: 60, side: "A" },
   onUpdate: prev => onUpdate(prev), toast: m => toast(esc(m)),
 });
 const S = room.S;
+initAgain(room, "marvels");
 
 // ---------------------------------------------------------------- helpers
 const V = () => S.view;
@@ -347,7 +349,7 @@ function viewLobby() {
   const L = S.lobby; if (!L) return "";
   const host = room.isHost, n = L.players.length, st = E.setupFor(Math.max(3, Math.min(7, n)));
   const link = room.linkFor(L.code), side = L.settings.side || "A";
-  return `<div class="page"><div class="hero" style="gap:4px"><div class="eyebrow">Table ${esc(L.code)}</div><h1 class="title" style="font-size:44px">Lobby</h1></div>
+  return `<div class="page"><div class="hero" style="gap:4px"><div class="eyebrow">Room code</div><h1 class="title" style="font-size:52px;letter-spacing:.14em;margin:0">${esc(L.code)}</h1><p class="muted" style="margin:0;font-size:14px;text-align:center">Friends can open <b>${location.host}</b>, tap <b>Join a game</b> and type this code — or use the link below.</p></div>
     <section class="panel"><div class="eyebrow">Invite players</div>
       <div class="share"><code id="link">${esc(link)}</code><button class="btn small" data-act="share">Share link</button><button class="btn ghost small" data-act="copy">Copy</button></div>
       <p class="muted" style="margin:0;font-size:15px">Anyone with the link types a name and joins. 3–7 players. If someone drops out, the game keeps going and they can rejoin from any device.</p></section>
@@ -463,7 +465,7 @@ function viewOverlay() {
   else if (ui.overlay === "salvage" && v?.salvage) h = sheet("Royal Tomb", `<div class="sheetbody"><p style="margin-top:0">Build one card from the discard pile for free.</p><div class="cardgrid">${v.salvage.map(c => cardHtml(c, "", "")).join("")}</div>
       <div class="row" style="margin-top:14px">${v.salvage.map(c => `<button class="btn small" data-act="salvage" data-card="${c}">Build ${esc(cardOf(c).name)}</button>`).join("")}<button class="btn ghost small" data-act="salvage-skip">Take nothing</button></div></div>`, "", true);
   else if (ui.overlay === "battle" && v && ui.battle) h = sheet(`Battles of Age ${ROMAN[ui.battle.age - 1]}`, `<div class="sheetbody">${battleBody(ui.battle)}</div>`);
-  else if (ui.overlay === "over" && v?.phase === "gameOver") h = sheet("Final scores", `<div class="sheetbody">${podium()}${scoreTable(true)}</div>`, `<div class="row" style="justify-content:center;padding:6px 16px 16px">${room.isHost ? `<button class="btn" data-act="again">Play again</button>` : `<span class="muted">The host can start a new game.</span>`}</div>`);
+  else if (ui.overlay === "over" && v?.phase === "gameOver") h = sheet("Final scores", `<div class="sheetbody">${podium()}${scoreTable(true)}</div>`, `<div class="row" style="justify-content:center;padding:6px 16px 16px">${room.isHost ? `<button class="btn" data-act="again">Play again</button>${againButton(true)}` : `<span class="muted">The host can start a new game.</span>`}</div>`);
   return h;
 }
 

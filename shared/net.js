@@ -11,10 +11,14 @@ import { debugShow } from "./debug.js";
 
 // Channel names are "<prefix><code>"; each game passes its own prefix.
 
-export function newCode() {
-  const abc = "abcdefghjkmnpqrstuvwxyz23456789";
-  return Array.from(crypto.getRandomValues(new Uint8Array(6)), b => abc[b % abc.length]).join("");
+// Room codes: 4 characters, the first names the game (see shared/games.js), e.g. "IKQ7" is an Incan Gold table.
+// Friends can type one on the home page. (Older 6-letter lowercase codes still work — links never expire.)
+export function newCode(letter) {
+  const abc = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const tail = Array.from(crypto.getRandomValues(new Uint8Array(letter ? 3 : 4)), b => abc[b % abc.length]).join("");
+  return (letter || "") + tail;
 }
+export const normCode = g => (g && g.length === 4 ? g.toUpperCase() : g);
 
 let client = null;
 async function supabase() {
@@ -41,7 +45,7 @@ export async function openBus(code, prefix = "g4f-") {
     config: { broadcast: { self: false, ack: false }, presence: { key: Math.random().toString(36).slice(2, 12) } },
   });
   const setOk = now => { if (now !== ok) { ok = now; statusFns.forEach(f => f(ok)); } };
-  for (const ev of ["state", "hello", "act", "err", "claim"]) {
+  for (const ev of ["state", "hello", "act", "err", "claim", "move"]) {
     ch.on("broadcast", { event: ev }, ({ payload }) => { setOk(true); (handlers[ev] || []).forEach(f => { try { f(payload); } catch (e) { console.error(e); debugShow(ev + ": " + (e.stack || e)); } }); });
   }
   const online = () => new Set(Object.values(ch.presenceState()).flat().map(p => p.pid).filter(Boolean));

@@ -105,6 +105,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--brand);overflow-x:h
 .game:hover .play{transform:scale(1.08)} .game:hover .play::after{animation:shine .9s var(--ease)}
 @keyframes shine{to{transform:translateX(120%)}}
 .play svg{width:12px;height:12px}
+.players{position:absolute;top:16px;left:16px;z-index:3;font-weight:800;font-size:13px;padding:7px 11px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 
 /* launch: a copy of the poster grows to fill the screen, its cards fan out, then the game loads */
 .launch{position:fixed;z-index:50;overflow:hidden;border-radius:24px;pointer-events:none;background:var(--bg2);
@@ -133,6 +134,26 @@ body{background:var(--bg);color:var(--ink);font-family:var(--brand);overflow-x:h
 @keyframes burst{0%{opacity:.6;transform:scale(1)}100%{opacity:0;transform:scale(160)}}
 body.leaving .wrap{transition:opacity .5s,filter .5s,transform .7s var(--ease);opacity:.3;filter:blur(4px);transform:scale(.97)}
 
+.joinbox{margin-top:22px;display:flex;flex-direction:column;gap:6px;max-width:420px;opacity:0;animation:fade .6s var(--ease) 1.2s forwards}
+.joinbox label{font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.jrow{display:flex;gap:8px}
+.jrow input{flex:1;min-width:0;width:0;font:inherit;font-size:20px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.jrow input:focus{outline:2px solid var(--gold);border-color:transparent}
+.jrow button{all:unset;cursor:pointer;font-weight:800;padding:0 16px;border-radius:12px;background:var(--mint);color:#06281a}
+.jerr{min-height:1.2em;font-size:14px;color:#ff9b8f}
+.filters{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;margin:-4px 0 18px}
+.fgroup{display:flex;align-items:center;gap:10px}
+.flabel{font-size:14px;font-weight:800;color:var(--dim)}
+.stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:rgba(255,255,255,.04)}
+.stepper button{all:unset;cursor:pointer;width:38px;height:38px;display:grid;place-items:center;font-size:20px;font-weight:800}
+.stepper button:active{background:rgba(255,255,255,.1)}
+.stepper output{min-width:44px;text-align:center;font-weight:800;font-size:16px}
+.chipsrow{display:flex;flex-wrap:wrap;gap:8px}
+.fchip{all:unset;cursor:pointer;font-size:14px;font-weight:700;padding:8px 13px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);transition:background .2s,color .2s}
+.fchip[aria-pressed="true"]{background:var(--gold);color:#1c1606;border-color:transparent}
+.game.hide{display:none}
+@media (max-width:640px){.chipsrow{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px;width:calc(100% + 32px)}.chipsrow::-webkit-scrollbar{display:none}.fchip{flex:none}}
+.none{color:var(--dim);font-size:15px;padding:8px 0}
 footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width:70ch}
 @media (max-width:760px){
   .hero{grid-template-columns:1fr;min-height:0;gap:0}
@@ -155,6 +176,9 @@ footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width
       <h1 class="mark" id="mark" aria-label="Table Night">Table Night</h1>
       <p class="tag">Card and board games to play with friends, right in the browser. Free, no accounts, works on any phone.</p>
       <ul class="steps"><li style="--i:0"><b>1</b>Start a table</li><li style="--i:1"><b>2</b>Send the link</li><li style="--i:2"><b>3</b>Friends type a name and play</li></ul>
+      <form class="joinbox" id="joinbox" autocomplete="off"><label for="jc">Got a room code?</label>
+        <div class="jrow"><input id="jc" maxlength="40" placeholder="e.g. IKQ7" autocapitalize="characters" spellcheck="false"><button type="submit">Join a game</button></div>
+        <div class="jerr" id="jerr" role="status"></div></form>
       <a class="cta" href="#games">Pick a game <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v12M3 9l5 5 5-5"/></svg></a>
     </div>
     <div class="fanstage" aria-hidden="true">
@@ -166,10 +190,16 @@ footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width
     </div>
   </header>
 
-  <div class="shelf-h" id="games"><h2>Pick a game</h2><span>5 games · up to 10 players</span></div>
+  <div class="shelf-h" id="games"><h2>Pick a game</h2><span id="count">11 games · 2 to 12 players</span></div>
+  <div class="filters" id="filters">
+    <div class="fgroup"><span class="flabel">How many of you?</span>
+      <div class="stepper"><button type="button" data-step="-1" aria-label="Fewer players">−</button><output id="npl">Any</output><button type="button" data-step="1" aria-label="More players">+</button></div></div>
+    <div class="chipsrow" id="tagchips"></div>
+  </div>
   <main class="shelf">
     <a class="game" href="wizard/" style="--i:0;--accent:#5b7bff;--c:linear-gradient(150deg,#1b2a7a,#0b1236 70%)">
       <img class="bgart" src="wizard/cards/sp-dragon@2x.webp" alt="">
+      <span class="players" aria-label="3–8 players">👥 3–8</span>
       <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
       <div class="art">
         <img src="wizard/cards/blue-wizard@2x.webp" alt="">
@@ -179,11 +209,12 @@ footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width
       <div class="body">
         <div class="name">Wizard</div>
         <p class="desc">Predict exactly how many tricks you'll win. 30th-anniversary rules with all nine special cards: Dragon, Fairy, Bomb, Werewolf and more.</p>
-        <div class="meta"><span>3–6 players</span><span>~45 min</span><span>Trick-taking</span></div>
+        <div class="meta"><span>3–8 players</span><span>~45 min</span><span>Trick-taking</span></div>
       </div>
     </a>
     <a class="game" href="splendor/" style="--i:1;--accent:#e0783a;--c:linear-gradient(150deg,#5a2a10,#1d0f08 70%)">
       <img class="bgart" src="lodestone/art/nob01@2x.webp" alt="">
+      <span class="players" aria-label="2–6 players">👥 2–6</span>
       <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
       <div class="art">
         <img src="lodestone/art/sil34@2x.webp" alt="">
@@ -198,6 +229,7 @@ footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width
     </a>
     <a class="game" href="marvels/" style="--i:2;--accent:#a58bff;--c:linear-gradient(150deg,#3a2c5a,#120d22 70%)">
       <img class="bgart" src="marvels/art/kyros@2x.webp" alt="">
+      <span class="players" aria-label="3–7 players">👥 3–7</span>
       <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
       <div class="art">
         <img src="marvels/art/herostatue@2x.webp" alt="">
@@ -211,11 +243,13 @@ footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width
       </div>
     </a>
     <a class="game" href="avalon/" style="--i:3;--accent:#e2465c;--c:linear-gradient(150deg,#14306e,#3a0c18 75%)">
+      <img class="bgart" src="avalon/art/back@2x.webp?v=1" alt="">
+      <span class="players" aria-label="5–10 players">👥 5–10</span>
       <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
       <div class="art">
-        <img class="cut" src="avalon/hub-merlin.png" alt="">
-        <img class="cut" src="avalon/hub-assassin.png" alt="">
-        <img class="cut" src="avalon/hub-morgana.png" alt="">
+        <img src="avalon/art/merlin@2x.webp?v=1" alt="">
+        <img src="avalon/art/lady@2x.webp?v=1" alt="">
+        <img src="avalon/art/morgana@2x.webp?v=1" alt="">
       </div>
       <div class="body">
         <div class="name">Avalon</div>
@@ -225,6 +259,7 @@ footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width
     </a>
     <a class="game" href="incan/" style="--i:4;--accent:#f2b23e;--c:linear-gradient(150deg,#1f3a1a,#3a2408 75%)">
       <img class="bgart" src="incan/art/temple@2x.webp" alt="">
+      <span class="players" aria-label="3–8 players">👥 3–8</span>
       <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
       <div class="art">
         <img src="incan/art/snakes@2x.webp" alt="">
@@ -237,11 +272,138 @@ footer{margin-top:48px;color:var(--dim);font-size:13px;line-height:1.5;max-width
         <div class="meta"><span>3–8 players</span><span>~25 min</span><span>Push your luck</span></div>
       </div>
     </a>
+    <a class="game" href="unoflip/" style="--i:5;--accent:#ff3d9a;--c:linear-gradient(150deg,#1f6fd1,#120d2a 55%,#7d3cff)">
+      <img class="bgart" src="uno/art/flip-hero@2x.webp?v=1" alt="">
+      <span class="players" aria-label="2–10 players">👥 2–10</span>
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
+      <div class="art" data-uno="flip"></div>
+      <div class="body">
+        <div class="name">UNO Flip</div>
+        <p class="desc">Classic UNO until someone plays a Flip — then the whole deck turns to the Dark Side: Draw Five, Skip Everyone, Wild Draw Color. Stack the same Draw card to pass it on.</p>
+        <div class="meta"><span>2–10 players</span><span>~20 min</span><span>Shedding</span></div>
+      </div>
+    </a>
+    <a class="game" href="nomercy/" style="--i:6;--accent:#ff5a3c;--c:linear-gradient(150deg,#5a0f0a,#160606 70%)">
+      <img class="bgart" src="uno/art/mercy-hero@2x.webp?v=1" alt="">
+      <span class="players" aria-label="2–6 players">👥 2–6</span>
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
+      <div class="art" data-uno="mercy"></div>
+      <div class="body">
+        <div class="name">UNO No Mercy</div>
+        <p class="desc">The brutal one. Draw 10s, stacks that never stop, 7s that swap hands — and 25 cards knocks you out. Go out first, or be the last one standing.</p>
+        <div class="meta"><span>2–6 players</span><span>~25 min</span><span>Take-that</span></div>
+      </div>
+    </a>
+    <a class="game" href="skullking/" style="--i:7;--accent:#e8b24a;--c:linear-gradient(150deg,#0d2a3e,#06121c 70%)">
+      <img class="bgart" src="skullking/art/sk-hero@2x.webp?v=1" alt="">
+      <span class="players" aria-label="2–8 players">👥 2–8</span>
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
+      <div class="art">
+        <img src="skullking/art/sk-mermaid@2x.webp?v=1" alt="">
+        <img src="skullking/art/sk-skullking@2x.webp?v=1" alt="">
+        <img src="skullking/art/sk-pirate2@2x.webp?v=1" alt="">
+      </div>
+      <div class="body">
+        <div class="name">Skull King</div>
+        <p class="desc">Bid exactly how many tricks you'll take, then fight for them with Pirates, Mermaids and the Skull King. Wizard's piratical cousin, with bonuses.</p>
+        <div class="meta"><span>2–8 players</span><span>~40 min</span><span>Trick-taking</span></div>
+      </div>
+    </a>
+    <a class="game" href="nimmt/" style="--i:8;--accent:#ff6b5e;--c:linear-gradient(150deg,#5a1a10,#1d0b09 70%)">
+      <img class="bgart" src="nimmt/art/nimmt-hero@2x.webp?v=1" alt="">
+      <span class="players" aria-label="2–10 players">👥 2–10</span>
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
+      <div class="art" data-nimmt></div>
+      <div class="body">
+        <div class="name">6 Nimmt!</div>
+        <p class="desc">Everyone picks a card at once; they slide into four rows. Play the sixth card on a row and you take all five — and their bull heads. Fewest bulls wins.</p>
+        <div class="meta"><span>2–10 players</span><span>~20 min</span><span>Simultaneous</span></div>
+      </div>
+    </a>
+  </main>
+
+  <div class="shelf-h" id="drinks-h"><h2>Drinking games</h2><span>18+ · drink responsibly — sips and water count</span></div>
+  <main class="shelf" id="drinks-shelf">
+    <a class="game" href="kingscup/" style="--i:0;--accent:#f2c14e;--c:linear-gradient(150deg,#0f4a3a,#04150f 70%)">
+      <img class="bgart" src="drinks/art/kings-hero@2x.webp?v=1" alt="">
+      <span class="players" aria-label="3–12 players">👥 3–12</span>
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
+      <div class="art" data-deck="13H,13S,8D"></div>
+      <div class="body">
+        <div class="name">Kings Cup</div>
+        <p class="desc">Ring of Fire: draw from the ring around the cup and follow the card's rule — Waterfall, Mate, Rhyme, Categories. The fourth King drinks the cup.</p>
+        <div class="meta"><span>3–12 players</span><span>Party</span><span>18+</span></div>
+      </div>
+    </a>
+    <a class="game" href="ridebus/" style="--i:1;--accent:#ff3d7f;--c:linear-gradient(150deg,#3a0f5a,#0c0418 70%)">
+      <img class="bgart" src="drinks/art/bus-hero@2x.webp?v=1" alt="">
+      <span class="players" aria-label="2–10 players">👥 2–10</span>
+      <span class="play">Play <svg viewBox="0 0 12 12"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg></span>
+      <div class="art" data-deck="1H,7S,12D"></div>
+      <div class="body">
+        <div class="name">Ride the Bus</div>
+        <p class="desc">Red or black, higher or lower, inside or outside, the suit — then the pyramid hands out drinks, and whoever holds the most cards rides the bus.</p>
+        <div class="meta"><span>2–10 players</span><span>Party</span><span>18+</span></div>
+      </div>
+    </a>
   </main>
   <footer>Specially made by Dhruv for his friends. All artwork on this site is original.</footer>
 </div>
 <script>
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Join a game by room code (the first character names the game) — or a pasted link
+  import("./shared/games.js").then(({ GAMES, TAGS, gameForCode }) => {
+    const box = document.getElementById("joinbox"), err = document.getElementById("jerr");
+    box.addEventListener("submit", e => {
+      e.preventDefault();
+      const r = gameForCode(document.getElementById("jc").value);
+      if (!r) { err.textContent = "Room codes are 4 characters, like IKQ7."; return; }
+      if (!r.game) { err.textContent = "That code doesn't match any game — check it with the host."; return; }
+      err.textContent = `Opening ${r.game.name}…`;
+      location.href = `${r.game.path}/?g=${r.code}`;
+    });
+
+    // Filters: how many players, and what kind of game
+    const tiles = [...document.querySelectorAll("a.game")].map(a => {
+      const path = a.getAttribute("href").replace(/\/$/, "").replace("splendor", "lodestone");
+      return { a, g: GAMES.find(x => x.path === path) };
+    }).filter(t => t.g);
+    let n = 0, tag = "all";
+    const chips = document.getElementById("tagchips");
+    chips.innerHTML = [["all", "All games"], ...Object.entries(TAGS)].map(([k, l]) => `<button type="button" class="fchip" data-tag="${k}" aria-pressed="${k === "all"}">${l}</button>`).join("");
+    function apply() {
+      let shown = 0;
+      for (const { a, g } of tiles) {
+        const ok = (!n || (n >= g.min && n <= g.max)) && (tag === "all" || g.tags.includes(tag));
+        a.classList.toggle("hide", !ok); if (ok) shown++;
+      }
+      document.getElementById("npl").textContent = n || "Any";
+      const drinksShown = tiles.some(t => t.g.tags.includes("drinking") && !t.a.classList.contains("hide"));
+      document.getElementById("drinks-h").style.display = document.getElementById("drinks-shelf").style.display = drinksShown ? "" : "none";
+      document.getElementById("count").textContent = shown === tiles.length ? `${tiles.length} games · 2 to 12 players` : `${shown} of ${tiles.length} games${n ? ` for ${n} players` : ""}`;
+      try { localStorage.setItem("tn-filter", JSON.stringify({ n, tag })); } catch { /* off */ }
+    }
+    document.getElementById("filters").addEventListener("click", e => {
+      const s = e.target.closest("[data-step]");
+      if (s) { n = Math.max(0, Math.min(12, (n || (+s.dataset.step > 0 ? 1 : 0)) + +s.dataset.step)); if (n === 1) n = +s.dataset.step > 0 ? 2 : 0; apply(); }
+      const c = e.target.closest("[data-tag]");
+      if (c) { tag = c.dataset.tag; for (const b of chips.children) b.setAttribute("aria-pressed", b === c); apply(); }
+    });
+    try { const f = JSON.parse(localStorage.getItem("tn-filter")); if (f) { n = f.n || 0; tag = f.tag || "all"; for (const b of chips.children) b.setAttribute("aria-pressed", b.dataset.tag === tag); } } catch { /* off */ }
+    apply();
+  });
+
+  // UNO tiles: three real card faces, drawn by the game's own card renderer
+  const asImg = svg => `<img alt="" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '))}">`;
+  import("./nimmt/cards.js").then(({ cardSvg }) => { for (const el of document.querySelectorAll("[data-nimmt]")) el.innerHTML = [55, 6, 77].map(n => asImg(cardSvg(n))).join(""); }).catch(() => {});
+  import("./drinks/cards.js").then(({ faceSvg }) => { for (const el of document.querySelectorAll("[data-deck]")) el.innerHTML = el.dataset.deck.split(",").map(id => asImg(faceSvg(id))).join(""); });
+  import("./uno/cards.js").then(({ cardSvg }) => {
+    const sets = { flip: [{ c: "y", k: "d1" }, { c: "w", k: "w" }, { c: "p", k: "d5" }], mercy: [{ c: "r", k: "d4" }, { c: "w", k: "wd10" }, { c: "b", k: "7" }] };
+    const font = `<style>text{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-weight:800;text-anchor:middle}text.n{font-style:italic;paint-order:stroke;stroke:#111;stroke-width:3.5;stroke-linejoin:round}text.p{fill:#fff}text.c{font-size:17px;font-style:italic;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:2.5}</style>`;
+    for (const el of document.querySelectorAll("[data-uno]"))
+      el.innerHTML = sets[el.dataset.uno].map(f => `<img class="cut" alt="" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(cardSvg(f).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace("</svg>", font + "</svg>"))}">`).join("");
+  });
 
   // wordmark: one letter at a time, "Night" in gold
   const mark = document.getElementById("mark");

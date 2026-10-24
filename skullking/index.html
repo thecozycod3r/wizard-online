@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#08141f">
+<title>Skull King · Table Night</title>
+<meta name="description" content="Skull King for 2–8 players on your phones. Start a table, share the link, play.">
+<meta property="og:title" content="Skull King — join my game">
+<meta property="og:description" content="Tap the link, enter your name, and bid your tricks.">
+<meta property="og:image" content="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Pirata+One&display=swap">
+<link rel="stylesheet" href="../shared/kit.css?v=1">
+<style>
+/* Layout: scoreboard chips (bid/won) on top, the trick in the middle, your hand and bid buttons in the dock. */
+:root{--bg:#06121c;--bg2:#0d1f2e;--panel:rgba(14,34,50,.82);--line:rgba(255,255,255,.13);--ink:#f3efe2;--dim:#a9bccb;--gold:#e8b24a;--gold-2:#ffd98a;
+  --display:"Pirata One","Bricolage Grotesque",serif;--body:"Bricolage Grotesque",system-ui,sans-serif;--num:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:dark;
+  --bgimg:url("art/sk-hero@2x.webp?v=1");--dockbg:rgba(8,20,30,.93)}
+.title{font-family:var(--display);font-weight:400;letter-spacing:.02em}
+.btn{background:linear-gradient(180deg,#ffd98a,#e8a53a);color:#2a1a04}
+.panel{background:rgba(10,28,42,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sheet{background:var(--bg2)} .toast{background:var(--bg2)}
+.fx-banner{background:rgba(6,18,28,.92);border-color:rgba(232,178,74,.35)}
+.fx-banner .t{font-family:var(--display);font-weight:400;font-size:clamp(30px,8vw,46px)}
+.skc{position:relative;width:var(--cw,58px);aspect-ratio:2/3;flex:none;border-radius:9px}
+.skc svg{display:block;width:100%;height:100%;filter:drop-shadow(0 3px 7px rgba(0,0,0,.5))}
+.skc.sp{overflow:hidden;box-shadow:0 0 0 2px #e8b24a,0 4px 10px rgba(0,0,0,.5)}
+.skc.sp.escape{box-shadow:0 0 0 2px #d8e2ea,0 4px 10px rgba(0,0,0,.5)} .skc.sp.mermaid{box-shadow:0 0 0 2px #4fd1c5,0 4px 10px rgba(0,0,0,.5)} .skc.sp.king{box-shadow:0 0 0 2px #ff5a3c,0 0 14px rgba(255,90,60,.5)}
+.skc.sp img{width:100%;height:100%;object-fit:cover;display:block}
+.skc .lbl{position:absolute;left:0;right:0;bottom:0;padding:10px 3px 3px;font-weight:800;font-size:calc(var(--cw,58px) * .14);text-align:center;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.85));line-height:1.05}
+.skc .pip{position:absolute;top:3px;left:5px;font-size:calc(var(--cw,58px) * .24);color:#fff;text-shadow:0 1px 3px #000}
+.chips{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));padding-top:12px}
+.chip .val{font-size:12.5px;padding:3px 8px;white-space:nowrap;border-radius:999px;background:rgba(255,255,255,.08)}
+.chip .val.hit{background:#1f7a46;color:#e9fff1} .chip .val.over{background:#7a1f2a;color:#ffe3e6}
+.leadsuit{font-weight:800;font-size:12px;padding:4px 10px;border-radius:999px;background:var(--c);color:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
+.trick{min-height:190px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;padding:16px 4px;--cw:clamp(64px,19vw,92px)}
+.trick .tp{display:flex;flex-direction:column;align-items:center;gap:3px;animation:play .45s cubic-bezier(.2,1.3,.4,1) both}
+.trick .tp span{font-weight:800;font-size:12px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trick .tp.won .skc{box-shadow:0 0 0 3px var(--gold-2),0 0 26px rgba(255,217,138,.7);transform:scale(1.06)}
+@keyframes play{from{transform:translateY(60px) scale(.7);opacity:0}}
+.hand{display:flex;overflow-x:auto;padding:16px 8px 4px;--cw:clamp(58px,17vw,80px);scrollbar-width:none;touch-action:pan-x}
+.hand::-webkit-scrollbar{display:none}
+.hand .skc{margin-right:calc(var(--cw) * -.3);cursor:pointer;transition:transform .25s cubic-bezier(.3,1.4,.5,1),filter .25s}
+.hand .skc:last-child{margin-right:0}
+.dock.mine .hand .skc.ok{transform:translateY(-10px)}
+.hand .skc.no{filter:brightness(.5) saturate(.6)}
+.hand .skc.going{transform:translateY(-60px) scale(1.1);opacity:0;transition:all .25s}
+.hand .skc.nope{animation:nope .35s} @keyframes nope{25%,75%{translate:-5px 0}50%{translate:5px 0}}
+.bids{display:flex;flex-wrap:wrap;gap:8px} .bids.sent{opacity:.4;pointer-events:none}
+.bidbtn{all:unset;box-sizing:border-box;cursor:pointer;min-width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:19px;background:linear-gradient(180deg,#ffd98a,#e8a53a);color:#2a1a04;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+.bidbtn:active{transform:translateY(2px)}
+.bidrow{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.bidrow span{display:flex;flex-direction:column;align-items:center;font-weight:700;font-size:12px;min-width:56px}
+.bidrow b{font-size:24px} .bidrow .pos b{color:#7ee2a1} .bidrow .neg b{color:#ff8a7a}
+.fx-banner .big{width:min(34vw,140px);--cw:100%}
+.tigpick{display:flex;gap:10px} .tigpick .btn{flex-direction:column;gap:2px} .tigpick small{font-size:12px;font-weight:600;opacity:.8}
+td.pos b{color:#7ee2a1} td.neg b{color:#ff8a7a}
+.hist{display:flex;flex-direction:column;gap:10px} .hist .h{background:var(--bg2);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.hist .h .crown{width:24px;height:18px}
+.fx-welcome .wl-fan .c .skc{--cw:100%}
+.fan .c .skc{--cw:100%}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

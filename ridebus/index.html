@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#12061f">
+<title>Ride the Bus · Table Night</title>
+<meta name="description" content="Ride the Bus for 2–10 players on your phones. Start a table, share the link, play.">
+<meta property="og:title" content="Ride the Bus — join my game">
+<meta property="og:description" content="Tap the link, enter your name — red or black?">
+<meta property="og:image" content="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="../shared/kit.css?v=1">
+<style>
+/* Layout: the current question / pyramid / bus in the middle, players with their cards, your choices in the dock. */
+:root{--bg:#0c0418;--bg2:#1a0b2e;--panel:rgba(36,16,62,.82);--line:rgba(255,255,255,.13);--ink:#fbf5ff;--dim:#c7b8dc;--gold:#ffd23f;--gold-2:#ffe98f;
+  --display:"Bricolage Grotesque",system-ui,sans-serif;--body:"Bricolage Grotesque",system-ui,sans-serif;--num:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:dark;
+  --bgimg:url("../drinks/art/bus-hero@2x.webp?v=1");--dockbg:rgba(14,6,26,.93)}
+.title{font-weight:800;letter-spacing:-.03em}
+.btn{background:linear-gradient(180deg,#ffe98f,#ffb21f);color:#2a1604}
+.panel{background:rgba(30,12,52,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sheet{background:var(--bg2)} .toast{background:var(--bg2)}
+.fx-banner{background:rgba(14,6,26,.92);border-color:rgba(255,210,63,.35)}
+.fx-banner .t{font-family:var(--display);font-weight:800;letter-spacing:-.02em}
+.fx-banner.good{border-color:#5fd39a;box-shadow:0 0 50px rgba(95,211,154,.4),0 30px 80px rgba(0,0,0,.7)}
+.fx-banner.bad{border-color:#ff3d7f;box-shadow:0 0 50px rgba(255,61,127,.4),0 30px 80px rgba(0,0,0,.7)}
+.fx-banner .big{width:min(30vw,120px);--cw:100%}
+.stage{text-align:center;padding:10px 4px} .stage h2{margin:6px 0 0;font-size:clamp(22px,6vw,30px)}
+.chips{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.chip.rider{border-color:#ff3d7f;box-shadow:0 0 0 2px rgba(255,61,127,.45)}
+.minihand{display:flex;gap:2px;flex:none} .pcard.mini{--cw:13px} .pcard.mini svg{filter:none}
+.pyr{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0;--cw:clamp(48px,14vw,68px)}
+.prow{display:flex;gap:6px;align-items:center;position:relative} .pv{position:absolute;left:-40px;font-weight:800;font-size:13px;color:var(--gold-2)}
+.pyr .pcard.now{box-shadow:0 0 0 3px var(--gold),0 0 24px rgba(255,210,63,.6);border-radius:8px}
+.busbox{position:relative;border-radius:18px;overflow:hidden;margin:6px 0 10px;border:1px solid var(--line)}
+.busimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.25}
+.busbox .stage{position:relative}
+.steps{display:flex;gap:8px;justify-content:center;margin:8px 0} .steps .st{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:rgba(255,255,255,.08);border:1px solid var(--line)}
+.steps .st.done{background:#1f9a55;border-color:#5fd39a} .steps .st.now{border-color:var(--gold);box-shadow:0 0 0 2px rgba(255,210,63,.4)}
+.buscards{display:flex;gap:6px;justify-content:center;min-height:60px;--cw:clamp(52px,15vw,72px)}
+.opts{display:flex;flex-wrap:wrap;gap:8px} .opts.sent{opacity:.4;pointer-events:none} .btn.opt{flex:1 1 40%;min-height:52px;font-size:16px}
+.hc{all:unset;cursor:pointer;--cw:56px;border-radius:9px} .hc.on{box-shadow:0 0 0 3px var(--gold)}
+.targets{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+.hand{display:flex;gap:6px;overflow-x:auto;padding:6px 4px 2px;--cw:clamp(44px,13vw,60px);scrollbar-width:none}
+.hist{display:flex;flex-direction:column;gap:8px} .hist .h{background:var(--bg2);border-radius:12px;padding:8px 12px;display:flex;align-items:center;gap:10px}
+.fan .c .pcard,.fx-welcome .wl-fan .c .pcard{--cw:100%}
+</style>
+<script type="module">import { CSS } from "../drinks/cards.js"; const s = document.createElement("style"); s.textContent = CSS; document.head.append(s);</script>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

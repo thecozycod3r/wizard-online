@@ -1,6 +1,10 @@
-// Drawn heraldic crests for every role and token. When the painted art (OpenAI) is in art/<id>.webp, set PAINTED
-// and the app shows the paintings instead; the crests stay as the small icons.
-export const PAINTED = false;
+// Drawn heraldic crests for every role and token, plus Codex paintings (art/<id>.webp, made in ~/wizard-deck/avalon)
+// for the big moments: role card, quest cards, Lady of the Lake, banners, welcome. The crests stay as the small icons.
+export const PAINTED = true;
+const V = 1;   // bump when a painting is redone
+const paint = (id, label = id) => `<img class="pa" src="art/${id}.webp?v=${V}" srcset="art/${id}@2x.webp?v=${V} 2x" alt="${label}" draggable="false" decoding="async">`;
+export const ALL_ART = ["merlin", "percival", "servant", "assassin", "morgana", "mordred", "oberon", "minion", "success", "fail", "lady", "back"];
+export const artUrl = (id, big = true) => `art/${id}${big ? "@2x" : ""}.webp?v=${V}`;
 
 const field = side => (side === "good"
   ? `<linearGradient id="fg-good" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a6fd8"/><stop offset="1" stop-color="#132a6b"/></linearGradient>`
@@ -31,3 +35,7 @@ export const questCard = ok => svg(ok
   "", ok ? "Success" : "Fail");
 export const LADY = svg(`<circle cx="50" cy="53" r="44" fill="#0f3d4a" stroke="url(#gold)" stroke-width="4"/><path d="M14 62 C26 54 36 70 50 62 C64 54 74 70 86 62 V70 C74 78 64 62 50 70 C36 78 26 62 14 70Z" fill="#5ec3d4" opacity=".8"/><path d="M50 18 L54 26 V58 H46 V26 Z" fill="url(#gold)"/><rect x="38" y="54" width="24" height="5" rx="2" fill="url(#gold)"/>`, "", "Lady of the Lake");
 export const SIGIL = side => crest(side === "good" ? "servant" : "minion", side);
+// big pictures: paintings when present, crests otherwise
+export const portrait = (role, side) => (PAINTED ? paint(role) : crest(role, side));
+export const questArt = ok => (PAINTED ? paint(ok ? "success" : "fail", ok ? "Success" : "Fail") : questCard(ok));
+export const LADY_ART = PAINTED ? paint("lady", "Lady of the Lake") : LADY;

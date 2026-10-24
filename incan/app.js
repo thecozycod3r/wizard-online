@@ -1,4 +1,5 @@
 import * as E from "./engine.js";
+import { againButton, initAgain } from "../shared/again.js";
 import { createRoom } from "../shared/room.js";
 import { alerts, soundRow, inAppHint } from "../shared/alert.js";
 import { hscroll } from "../shared/hscroll.js";
@@ -15,11 +16,12 @@ const LS = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch 
 const ui = { overlay: null, tab: "basics", shownLast: null, dealt: new Set(), dealtRound: 0 };
 let fxHold = 0;
 
-const room = createRoom({
+const room = createRoom({ letter: "I",
   prefix: "inc-", engine: E, minPlayers: 3, maxPlayers: 8, defaults: { timer: 30 }, timers: G => E.pause(G),
   onUpdate: prev => onUpdate(prev), toast: m => toast(esc(m)),
 });
 const S = room.S;
+initAgain(room, "incan");
 
 // ---------------------------------------------------------------- helpers
 const V = () => S.view;
@@ -273,7 +275,7 @@ function viewClaim() {
 function viewLobby() {
   const L = S.lobby; if (!L) return "";
   const host = room.isHost, n = L.players.length, link = room.linkFor(L.code);
-  return `<div class="page"><div class="hero" style="gap:4px"><div class="eyebrow">Table ${esc(L.code)}</div><h1 class="title" style="font-size:44px">Lobby</h1></div>
+  return `<div class="page"><div class="hero" style="gap:4px"><div class="eyebrow">Room code</div><h1 class="title" style="font-size:52px;letter-spacing:.14em;margin:0">${esc(L.code)}</h1><p class="muted" style="margin:0;font-size:14px;text-align:center">Friends can open <b>${location.host}</b>, tap <b>Join a game</b> and type this code — or use the link below.</p></div>
     <section class="panel"><div class="eyebrow">Invite players</div>
       <div class="share"><code id="link">${esc(link)}</code><button class="btn small" data-act="share">Share link</button><button class="btn ghost small" data-act="copy">Copy</button></div>
       <p class="muted" style="margin:0;font-size:15px">Anyone with the link types a name and joins. 3–8 players. If someone drops out, the game keeps going and they can rejoin from any device.</p></section>
@@ -353,7 +355,7 @@ function viewOverlay() {
   if (ui.overlay === "leave" && v) return sheet("Leave the game?", `<div class="sheetbody"><p style="margin-top:0">A bot will play your seat for the rest of this game, so everyone else can finish. Changed your mind? Open the same link and tap <b>This is me</b> to take your seat back.</p><div class="row" style="justify-content:center;margin-top:14px"><button class="btn" data-act="leave">Leave the game</button><button class="btn ghost" data-act="close">Stay</button></div></div>`);
   if (ui.overlay === "rules") return sheet("Rules", rulesTabs() + `<div class="sheetbody guide">${soundRow()}${RULES[ui.tab] || RULES.basics}</div>`);
   if (ui.overlay === "scores" && v) return sheet("Explorers", `<div class="sheetbody">${scores()}</div>`);
-  if (ui.overlay === "over" && v?.phase === "gameOver") return sheet("The tents are opened", `<div class="sheetbody">${podium()}</div>`, `<div class="row" style="justify-content:center;padding:6px 16px 16px">${room.isHost ? `<button class="btn" data-act="again">Play again</button>` : `<span class="muted">The host can start a new game.</span>`}</div>`);
+  if (ui.overlay === "over" && v?.phase === "gameOver") return sheet("The tents are opened", `<div class="sheetbody">${podium()}</div>`, `<div class="row" style="justify-content:center;padding:6px 16px 16px">${room.isHost ? `<button class="btn" data-act="again">Play again</button>${againButton(true)}` : `<span class="muted">The host can start a new game.</span>`}</div>`);
   return "";
 }
 function rulesTabs() {

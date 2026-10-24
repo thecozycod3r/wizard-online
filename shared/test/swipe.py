@@ -12,12 +12,14 @@ from playwright.sync_api import sync_playwright
 
 GAME = sys.argv[1]
 BASE = sys.argv[2] if len(sys.argv) > 2 else f"http://localhost:8765/{GAME}/"
-J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc", "unoflip": "window.__uno", "nomercy": "window.__uno"}[GAME]
-ROWS = {"wizard": [".opps"], "lodestone": [".mrow", ".opps"], "marvels": [".hand", ".opps"], "avalon": [".tabs"], "incan": [".tabs"], "unoflip": [".hand", ".opps"], "nomercy": [".hand", ".opps"]}[GAME]   # Avalon has no sideways rows on the table
+J = {"wizard": "window.__wiz", "lodestone": "window.__lode", "marvels": "window.__mar", "avalon": "window.__ava", "incan": "window.__inc", "unoflip": "window.__uno", "nomercy": "window.__uno", "nimmt": "window.__nim", "skullking": "window.__sk", "kingscup": "window.__kc", "ridebus": "window.__rb"}[GAME]
+ROWS = {"wizard": [".opps"], "lodestone": [".mrow", ".opps"], "marvels": [".hand", ".opps"], "avalon": [".tabs"], "incan": [".tabs"], "unoflip": [".hand", ".opps"], "nomercy": [".hand", ".opps"], "nimmt": [".hand"], "skullking": [".hand"], "kingscup": [".tabs"], "ridebus": [".tabs"]}[GAME]   # Avalon has no sideways rows on the table
 ROOT = Path(__file__).resolve().parents[2]
 PLAN = (open(ROOT / "wizard/test/e2e.py").read().split('CHOOSE = """')[1].split('"""')[0] if GAME == "wizard"
         else open(ROOT / f"{GAME}/test/e2e.py").read().split('PLAN = """')[1].split('"""')[0])
-MAXP = {"marvels": 7, "avalon": 10, "incan": 8, "unoflip": 10, "nomercy": 6}.get(GAME, 6)
+# kit games' PLAN returns {a: action, taps: [...]}; these suites want the action itself
+if GAME in ("nimmt", "skullking", "kingscup", "ridebus"): PLAN = f"() => {{ const p = ({PLAN})(); return p ? p.a : null; }}"
+MAXP = {"marvels": 7, "avalon": 10, "incan": 8, "unoflip": 10, "nomercy": 6, "nimmt": 10, "skullking": 8, "kingscup": 12, "ridebus": 10, "wizard": 8}.get(GAME, 6)
 results = []
 
 def check(name, ok, detail=""):
@@ -76,7 +78,7 @@ with sync_playwright() as pw:
         ghost = me.evaluate("() => !!document.querySelector('.dragghost')")
         left = me.evaluate("([s, i]) => document.querySelectorAll(s)[i]?.scrollLeft || 0", [sel, idx])
         # more updates after the swipe (in Marvels Anya holds her pick, so her hand stays the same cards)
-        for _ in range(4): tick(GAME != "marvels"); time.sleep(0.6)
+        for _ in range(4): tick(GAME not in ("marvels", "nimmt")); time.sleep(0.6)
         seq1 = me.evaluate(f"() => {J}.S.view?.seq || 0")
         after = me.evaluate("([s, i]) => document.querySelectorAll(s)[i]?.scrollLeft || 0", [sel, idx])
         return dict(mid=mid, left=left, after=after, ghost=ghost, updates=seq1 - seq0)
@@ -93,7 +95,9 @@ with sync_playwright() as pw:
             check(f"{name} stays put through {r['updates']} updates", r["updates"] > 0 and r["after"] > 40 and abs(r["after"] - r["left"]) < 4, f"{r['left']} → {r['after']}")
             check(f"{name} swipe doesn't pick up a card", not r["ghost"])
             me.evaluate("([s, i]) => { const r = document.querySelectorAll(s)[i]; if (r) r.scrollLeft = 0; }", [sel, i])
-    check("found rows that overflow on a phone", tried > 0, f"{tried} rows")
+    # only games whose table really has sideways rows must find one; the rest just must not error
+    if GAME in ("wizard", "lodestone", "marvels", "unoflip", "nomercy"): check("found rows that overflow on a phone", tried > 0, f"{tried} rows")
+    else: print(f"     ({tried} sideways rows on this table)")
     check("no page errors", not errs, str(errs[:3]))
     cr.close()
 

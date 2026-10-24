@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#160606">
+<title>UNO No Mercy · Table Night</title>
+<meta name="description" content="UNO No Mercy for friends on your phones. Start a table, share the link, play.">
+<meta property="og:title" content="UNO No Mercy — join my game">
+<meta property="og:description" content="Tap the link, enter your name, and play UNO No Mercy with friends.">
+<meta property="og:image" content="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="UNO No Mercy">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="../uno/base.css?v=1">
+<link rel="stylesheet" href="../uno/uno.css?v=1">
+</head>
+<body class="mercy">
+<div id="app"></div>
+<script type="module">
+  import { start } from "../uno/app.js";
+  import { MERCY } from "../uno/rules.js";
+  start({ variant: "mercy", title: "UNO No Mercy", prefix: "unm-", rules: MERCY,
+    eyebrow: "Table Night · Show 'em no mercy", blurb: "The brutal one: Draw 10s, stacking that never stops, 7s that swap hands, and 25 cards knocks you out. Win by going out, or by being the last one standing. 2–6 players." });
+</script>
+</body>
+</html>

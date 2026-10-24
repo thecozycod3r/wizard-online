@@ -1,4 +1,5 @@
 import * as E from "./engine.js";
+import { againButton, initAgain } from "../shared/again.js";
 import { createRoom } from "../shared/room.js";
 import { preload } from "../shared/preload.js";
 import { alerts, soundRow, inAppHint } from "../shared/alert.js";
@@ -26,7 +27,7 @@ const linkFor = code => `${location.origin}${location.pathname}?g=${code}`;
 const DEFAULT_SETTINGS = { specials: [...E.SPECIALS], dealerRule: true, penalty: "house", rounds: 0, timer: 60 };
 
 // ---------------------------------------------------------------- table (shared Games4free room)
-const room = createRoom({
+const room = createRoom({ letter: "W",
   prefix: "wiz-", engine: E, minPlayers: 3, maxPlayers: E.MAX_PLAYERS, defaults: { ...DEFAULT_SETTINGS },
   hostOnly: ["resolve", "nextRound"],
   // the table runner shows each finished trick for a moment, and deals the next round if nobody does
@@ -35,6 +36,7 @@ const room = createRoom({
   toast: m => toast(esc(m)),
 });
 const S = room.S;
+initAgain(room, "wizard");
 Object.assign(S, { fxQueue: [], seenPlays: new Set(), leader: null,
   ui: { sel: null, overlay: null, guideTab: "basics", decl: {}, witchGive: null, witchTake: null, zoom: null, lastToastSeq: -1 } });
 let dragging = null, renderQueued = false;
@@ -212,7 +214,7 @@ function viewLobby() {
     return `<button class="chipbtn" aria-pressed="${on}" ${isHost ? `data-act="sp" data-k="${k}"` : "disabled"}>${img(c.id)}<span>${esc(c.name)}</span></button>`;
   }).join("");
   return `<div class="page">
-    <div class="hero" style="gap:6px"><div class="eyebrow">Table ${esc(L.code)}</div><h1 class="title" style="font-size:44px">Lobby</h1></div>
+    <div class="hero" style="gap:6px"><div class="eyebrow">Room code</div><h1 class="title" style="font-size:52px;letter-spacing:.14em;margin:0">${esc(L.code)}</h1><p class="muted" style="margin:0;font-size:14px;text-align:center">Friends can open <b>${location.host}</b>, tap <b>Join a game</b> and type this code — or use the link below.</p></div>
     <section class="panel">
       <div class="eyebrow">Invite players</div>
       <div class="share"><code id="link">${esc(link)}</code>
@@ -485,7 +487,7 @@ function podium() {
   const lead = leaderOf(S.view);
   return `<div class="podium">${ps.map((p, i) => `<div class="p"><span class="av" style="background:${SEAT_COLORS[seatOf(p.id)]}">${i + 1}</span><span>${p.id === S.me ? "You" : esc(p.name)}</span>${p.id === lead ? CROWN : ""}<span class="pts">${p.total}</span></div>`).join("")}</div><div style="height:14px"></div>`;
 }
-const overFoot = () => `<div class="row" style="justify-content:center;padding:6px 16px 16px">${room.isHost ? `<button class="btn" data-act="again">Play again</button>` : `<span class="muted">The host can start a new game.</span>`}</div>`;
+const overFoot = () => `<div class="row" style="justify-content:center;padding:6px 16px 16px">${room.isHost ? `<button class="btn" data-act="again">Play again</button>${againButton(true)}` : `<span class="muted">The host can start a new game.</span>`}</div>`;
 
 // ---------------------------------------------------------------- hand sizing
 // Small screens / large text: if the middle doesn't fit, drop the big trump card (the top bar shows it too),

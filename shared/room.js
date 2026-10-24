@@ -14,7 +14,7 @@
 // Leaving: in the lobby the seat is removed; mid-game a bot takes the seat (plays smartAction about once a second) so the
 // game can finish. The player can take the seat back from any device with "This is me".
 
-import { openBus, newCode } from "./net.js";
+import { openBus, newCode, normCode } from "./net.js";
 import { debugShow } from "./debug.js";
 
 const LS = {
@@ -25,7 +25,9 @@ const rid = () => Math.random().toString(36).slice(2, 10) + Math.random().toStri
 
 export function createRoom(cfg) {
   const { prefix, engine, defaults = {}, minPlayers = 2, maxPlayers = 6, hostOnly = [], timers = () => null, onUpdate = () => {}, toast = () => {} } = cfg;
-  const S = { bots: [], left: false, mode: "landing", code: new URLSearchParams(location.search).get("g"), me: null, lobby: null, view: null, online: {}, status: "", error: "", net: true, isHost: false };
+  const Q = new URLSearchParams(location.search);
+  const arrive = { name: Q.get("n"), create: normCode(Q.get("new")) };
+  const S = { bots: [], left: false, mode: "landing", code: normCode(Q.get("g")), me: null, lobby: null, view: null, online: {}, status: "", error: "", net: true, isHost: false };
   let H = null, BUS = null, ME = null, last = null, lastAt = 0, pending = null, wasSeated = false, onlineSet = new Set(), timer = null;
   let clockSeen = null, clockAt = 0, lastNote = null, botTimer = null;
   // Phones pause pages in the background (screen lock, switching apps). On waking, everything this device knows is stale:
@@ -210,6 +212,8 @@ export function createRoom(cfg) {
   async function connect() {
     BUS = await openBus(S.code, prefix);
     BUS.on("state", onState); BUS.on("hello", onHello); BUS.on("act", onAct); BUS.on("err", onErr); BUS.on("claim", onClaim);
+    // "Play again, same group": the host opened another game; follow with our name (a moment later, so its table is up first)
+    BUS.on("move", m => { if (!H && ME && m?.path && m?.code) setTimeout(() => { location.href = `../${m.path}/?g=${m.code}&n=${encodeURIComponent(ME.name)}`; }, 1200); });
     BUS.onPresence(set => {
       heard(); onlineSet = set;
       if (!last) return;
@@ -246,12 +250,12 @@ export function createRoom(cfg) {
   }, 1000);
 
   // ------------------------------------------------ public API
-  return {
+  const api = {
     S,
     get isHost() { return !!H; },
     get hostSettings() { return H?.settings; },
-    async create(name) {
-      S.code = newCode();
+    async create(name, code) {
+      S.code = normCode(code) || newCode(cfg.letter);
       ME = { token: rid(), name, pid: "p" + rid().slice(0, 6) };
       LS.set(meKey(), ME); LS.set("g4f-name", name);
       history.replaceState(null, "", `?g=${S.code}`);
@@ -267,6 +271,8 @@ export function createRoom(cfg) {
       try { await connect(); } catch (e) { S.mode = "join"; S.error = e.message; S.status = ""; return onUpdate(null); }
       S.status = "Finding the table…"; onUpdate(null);
       BUS.send("hello", { token: ME.token, name });
+      // keep saying hello for a while: after "play again" the host's new table may open a moment after we arrive
+      let tries = 0; const again = setInterval(() => { if (last || H || ++tries > 12) return clearInterval(again); BUS.send("hello", { token: ME.token, name }); }, 2000);
       setTimeout(() => {
         if (last || H) return;
         const saved = LS.get(stKey());
@@ -295,6 +301,13 @@ export function createRoom(cfg) {
     kick(pid) { if (H && !H.G) { H.players = H.players.filter(p => p.id !== pid); broadcast(); } },
     playFor(pid) { if (!H?.G) return; const a = engine.autoAction(H.G, pid); if (a) applyAct(pid, a, false, true); },
     backToLobby() { if (H) { H.G = null; H.bots = []; broadcast(); } },
+    // host only: take everyone at this table to a new table of another game (path = its folder, letter = its code letter)
+    moveTo(path, letter) {
+      if (!H || !ME) return;
+      const code = newCode(letter);
+      BUS?.send("move", { path, code });
+      setTimeout(() => { location.href = `../${path}/?new=${code}&n=${encodeURIComponent(ME.name)}`; }, 300);
+    },
     // Leave the table. Mid-game a bot keeps the seat warm; if this device ran the table, another player's device takes over.
     leave() {
       if (!S.me) return;
@@ -320,4 +333,11 @@ export function createRoom(cfg) {
       return c ? { ...c, left: Math.max(0, c.left) } : null;
     },
   };
+  // arriving from "play again": a guest joins with the name they had; the host opens the new table
+  if (arrive.name) {
+    LS.set("g4f-name", arrive.name);
+    if (arrive.create) setTimeout(() => api.create(arrive.name, arrive.create), 0);
+    else if (S.code) { if (!LS.get(meKey())) LS.set(meKey(), { token: rid(), name: arrive.name }); history.replaceState(null, "", `?g=${S.code}`); }
+  }
+  return api;
 }

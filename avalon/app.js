@@ -1,9 +1,11 @@
 import * as E from "./engine.js";
+import { againButton, initAgain } from "../shared/again.js";
 import { createRoom } from "../shared/room.js";
 import { alerts, soundRow, inAppHint } from "../shared/alert.js";
 import { hscroll } from "../shared/hscroll.js";
 import { RULES, setupTable } from "./rules.js";
-import { crest, questCard, LADY } from "./art.js";
+import { crest, questCard, LADY, portrait, questArt, LADY_ART, ALL_ART, artUrl } from "./art.js";
+import { preload } from "../shared/preload.js";
 
 const $app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -24,12 +26,13 @@ const ROLE_TEXT = {
 const ui = { overlay: null, tab: "basics", pick: [], target: null, shownLast: null, ladyShown: null };
 let fxHold = 0;
 
-const room = createRoom({
+const room = createRoom({ letter: "A",
   prefix: "ava-", engine: E, minPlayers: 5, maxPlayers: 10,
   defaults: { timer: 180, percival: false, morgana: false, mordred: false, oberon: false, lady: false },
   onUpdate: prev => onUpdate(prev), toast: m => toast(esc(m)),
 });
 const S = room.S;
+initAgain(room, "avalon");
 
 // ---------------------------------------------------------------- helpers
 const V = () => S.view;
@@ -116,13 +119,13 @@ function effect(last, v) {
   if (last.kind === "quest") {
     const cards = Array.from({ length: last.team.length }, (_, i) => i < last.fails);
     for (let i = cards.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cards[i], cards[j]] = [cards[j], cards[i]]; }
-    showFx(`<div class="qreveal">${cards.map((f, i) => `<div class="c" style="animation-delay:${.2 + i * .25}s">${questCard(!f)}</div>`).join("")}</div>
+    showFx(`<div class="qreveal">${cards.map((f, i) => `<div class="c" style="animation-delay:${.2 + i * .25}s">${questArt(!f)}</div>`).join("")}</div>
       <div class="t" style="animation:wlword .6s ${.4 + cards.length * .25}s both">Quest ${last.quest} ${last.success ? "succeeded" : "failed"}</div>
       <div class="l">${last.fails} Fail card${last.fails === 1 ? "" : "s"}${last.twoFails && last.fails === 1 ? " — this quest needed two" : ""}</div>`, 3200);
     setTimeout(() => burst(last.success ? GOOD_COLS : EVIL_COLS), 600 + cards.length * 250);
   }
-  if (last.kind === "lady") showFx(`<div class="img" style="width:min(26vw,110px)">${LADY}</div><div class="t">Lady of the Lake</div><div class="l">${esc(nameOf(last.by))} looked into ${esc(last.target === S.me ? "your" : plainName(last.target) + "'s")} heart</div>`, 2200);
-  if (last.kind === "assassin") showFx(`<div class="img">${crest("assassin", "evil")}</div><div class="t">${esc(nameOf(last.target))}…</div><div class="l">The Assassin names ${esc(last.target === S.me ? "you" : plainName(last.target))} as Merlin</div>`, 2400);
+  if (last.kind === "lady") showFx(`<div class="img" style="width:min(30vw,130px)">${LADY_ART}</div><div class="t">Lady of the Lake</div><div class="l">${esc(nameOf(last.by))} looked into ${esc(last.target === S.me ? "your" : plainName(last.target) + "'s")} heart</div>`, 2200);
+  if (last.kind === "assassin") showFx(`<div class="img">${portrait("assassin", "evil")}</div><div class="t">${esc(nameOf(last.target))}…</div><div class="l">The Assassin names ${esc(last.target === S.me ? "you" : plainName(last.target))} as Merlin</div>`, 2400);
   if (last.kind === "start") showFx(`<div class="t">The quests begin</div><div class="l">${esc(nameOf(last.leader))} ${last.leader === S.me ? "are" : "is"} the first leader</div>`, 2000);
 }
 // One reveal at a time: a vote reveal and the quest that follows it play one after the other, never on top of each other.
@@ -173,7 +176,7 @@ function welcome() {
   const words = "Welcome to Dhruv's Vibe Coded Avalon".split(" ");
   const d = document.createElement("div"); d.className = "fx-welcome";
   const fanRoles = [["percival", "good"], ["merlin", "good"], ["servant", "good"], ["assassin", "evil"], ["morgana", "evil"], ["mordred", "evil"]];
-  d.innerHTML = `<div class="wl-fan">${fanRoles.map(([r, s], i) => `<div class="c" style="--i:${i - 2.5}">${crest(r, s)}</div>`).join("")}</div>
+  d.innerHTML = `<div class="wl-fan">${fanRoles.map(([r, s], i) => `<div class="c" style="--i:${i - 2.5}">${portrait(r, s)}</div>`).join("")}</div>
     <h1>${words.map((w, i) => `<span style="animation-delay:${.5 + i * .16}s">${w}</span>`).join(" ")}</h1><p>Manifest his greatness and you may win</p><small>Tap to start</small>`;
   document.body.append(d);
   const shownAt = Date.now();
@@ -203,7 +206,7 @@ function render() {
 }
 
 const rulesBtn = (cls = "ghost small") => `<button class="btn ${cls}" data-act="rules">Rules</button>`;
-const fan = roles => `<div class="fan">${roles.map(([r, s], i) => `<div class="c" style="transform:rotate(${(i - (roles.length - 1) / 2) * 10}deg) translateY(${Math.abs(i - (roles.length - 1) / 2) * 8}px)">${crest(r, s)}</div>`).join("")}</div>`;
+const fan = roles => `<div class="fan">${roles.map(([r, s], i) => `<div class="c" style="transform:rotate(${(i - (roles.length - 1) / 2) * 10}deg) translateY(${Math.abs(i - (roles.length - 1) / 2) * 8}px)">${portrait(r, s)}</div>`).join("")}</div>`;
 
 function viewLanding() {
   return `<div class="page">${inAppHint()}<div class="hero">${fan([["merlin", "good"], ["percival", "good"], ["assassin", "evil"], ["morgana", "evil"]])}
@@ -251,7 +254,7 @@ function viewLobby() {
   const L = S.lobby; if (!L) return "";
   const host = room.isHost, n = L.players.length, st = L.settings, link = room.linkFor(L.code);
   const nn = Math.max(5, Math.min(10, n)), rs = E.rolesFor(nn, st);
-  return `<div class="page"><div class="hero" style="gap:4px"><div class="eyebrow">Table ${esc(L.code)}</div><h1 class="title" style="font-size:44px">Lobby</h1></div>
+  return `<div class="page"><div class="hero" style="gap:4px"><div class="eyebrow">Room code</div><h1 class="title" style="font-size:52px;letter-spacing:.14em;margin:0">${esc(L.code)}</h1><p class="muted" style="margin:0;font-size:14px;text-align:center">Friends can open <b>${location.host}</b>, tap <b>Join a game</b> and type this code — or use the link below.</p></div>
     <section class="panel"><div class="eyebrow">Invite players</div>
       <div class="share"><code id="link">${esc(link)}</code><button class="btn small" data-act="share">Share link</button><button class="btn ghost small" data-act="copy">Copy</button></div>
       <p class="muted" style="margin:0;font-size:15px">Anyone with the link types a name and joins. 5–10 players. Talk on a call or sit together — your phone keeps your role secret.</p></section>
@@ -349,7 +352,7 @@ function dock() {
     case "quest":
       if (w.includes(S.me)) {
         status = `You're on quest ${v.quest}. Play a card — nobody sees which.`;
-        actions = `<div class="qcards"><button class="qcard" data-act="quest" data-ok="1">${questCard(true)}Success</button><button class="qcard" data-act="quest" data-ok="0" ${v.side === "good" ? "disabled" : ""}>${questCard(false)}${v.side === "good" ? "Loyal knights can't fail" : "Fail"}</button></div>`;
+        actions = `<div class="qcards"><button class="qcard" data-act="quest" data-ok="1">${questArt(true)}Success</button><button class="qcard" data-act="quest" data-ok="0" ${v.side === "good" ? "disabled" : ""}>${questArt(false)}${v.side === "good" ? "Loyal knights can't fail" : "Fail"}</button></div>`;
       } else if (v.team.includes(S.me)) status = `Card played · waiting for ${w.length} more`;
       else status = `The team is on the quest… ${v.team.length - w.length}/${v.team.length} cards played`;
       break;
@@ -384,7 +387,7 @@ function roleCard() {
        <ul>${k.map(x => `<li class="${x.as === "merlin?" ? "m" : "e"}">${esc(plainName(x.id))}${x.as === "assassin" ? " · Assassin" : ""}</li>`).join("")}</ul>`
     : r === "merlin" ? `<p class="muted" style="font-size:14px">You see no Evil players — Mordred is hiding from you.</p>` : "";
   const ready = v.phase === "reveal" && !v.players.find(p => p.id === S.me)?.ready;
-  return `<div class="rolecard"><div class="crest">${crest(r, side)}</div><h3>${esc(E.ROLES[r].name)}</h3><span class="side ${side}">${side === "good" ? "Loyal to Arthur" : "Serves Mordred"}</span>
+  return `<div class="rolecard"><div class="crest">${portrait(r, side)}</div><h3>${esc(E.ROLES[r].name)}</h3><span class="side ${side}">${side === "good" ? "Loyal to Arthur" : "Serves Mordred"}</span>
     <p>${ROLE_TEXT[r]}</p>${known}
     ${ready ? `<button class="btn big" data-act="ready" style="flex:none;min-width:220px">I've seen my role</button>` : `<button class="btn ghost" data-act="close">Hide</button>`}</div>`;
 }
@@ -397,7 +400,7 @@ function viewOverlay() {
   else if (ui.overlay === "rules") h = sheet("Rules", rulesTabs() + `<div class="sheetbody guide">${soundRow()}${rulesBody()}</div>`);
   else if (ui.overlay === "history" && v) h = sheet("History", `<div class="sheetbody">${history()}</div>`);
   else if (ui.overlay === "ladyres" && v) h = sheet("Lady of the Lake", `<div class="sheetbody">${ladyResult()}</div>`);
-  else if (ui.overlay === "over" && v?.phase === "gameOver") h = sheet(v.result.winner === "good" ? "Good wins" : "Evil wins", `<div class="sheetbody">${gameOver()}</div>`, `<div class="row" style="justify-content:center;padding:6px 16px 16px">${room.isHost ? `<button class="btn" data-act="again">Play again</button>` : `<span class="muted">The host can start a new game.</span>`}</div>`);
+  else if (ui.overlay === "over" && v?.phase === "gameOver") h = sheet(v.result.winner === "good" ? "Good wins" : "Evil wins", `<div class="sheetbody">${gameOver()}</div>`, `<div class="row" style="justify-content:center;padding:6px 16px 16px">${room.isHost ? `<button class="btn" data-act="again">Play again</button>${againButton(true)}` : `<span class="muted">The host can start a new game.</span>`}</div>`);
   return h;
 }
 
@@ -430,7 +433,7 @@ function history() {
 function ladyResult() {
   const c = V().ladyChecks.filter(x => x.by === S.me && x.side).at(-1);
   if (!c) return "";
-  return `<div class="rolecard"><div class="crest" style="width:min(36vw,140px)">${crest(c.side === "good" ? "servant" : "minion", c.side)}</div>
+  return `<div class="rolecard"><div class="crest" style="width:min(36vw,140px)">${portrait(c.side === "good" ? "servant" : "minion", c.side)}</div>
     <h3>${esc(plainName(c.target))} is ${c.side === "good" ? "Good" : "Evil"}</h3>
     <p class="muted">Only you know this. Share it, keep it, or lie about it — your choice.</p><button class="btn ghost" data-act="close">Got it</button></div>`;
 }
@@ -523,6 +526,8 @@ setInterval(() => {
 async function wake() { try { await navigator.wakeLock?.request("screen"); } catch { /* not allowed */ } }
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && S.mode === "game" && wake());
 addEventListener("resize", () => S.mode === "game" && render());
+
+preload(ALL_ART.map(id => artUrl(id, devicePixelRatio > 1.5)));
 
 (function boot() {
   if (S.code) { const n = room.savedName(); if (n) { wake(); return room.join(n); } S.mode = "join"; }

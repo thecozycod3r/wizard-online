@@ -22,7 +22,7 @@ with sync_playwright() as pw:
     b = pw.chromium.launch(channel="chrome")
     for name, vp in [("phone", {"width": 390, "height": 844}), ("desk", {"width": 1280, "height": 800})]:
         p = b.new_context(viewport=vp, device_scale_factor=2).new_page()
-        p.goto(BASE); p.fill("#nm", "Dhruv"); p.click("text=Start a game"); p.wait_for_selector("text=Lobby")
+        p.goto(BASE); p.fill("#nm", "Dhruv"); p.click("text=Start a game"); p.wait_for_selector("text=Room code")
         print(name, p.evaluate(FF))
         p.wait_for_timeout(600); p.screenshot(path=SH + f"vis-{name}.png")
         p.click("text=Guide"); p.wait_for_timeout(300); p.screenshot(path=SH + f"vis-{name}-guide.png")

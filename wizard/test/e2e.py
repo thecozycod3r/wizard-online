@@ -40,7 +40,7 @@ def main():
         host.goto(BASE)
         host.fill("#nm", "Dhruv")
         host.click("text=Start a game")
-        host.wait_for_selector("text=Lobby")
+        host.wait_for_selector("text=Room code")
         link = host.inner_text("#link")
         print("link", link)
         guests = []
