@@ -1,10 +1,10 @@
-# Games4free
+# Table Night
 
 Free card games to play with friends in the browser: start a table, share the link, play. No accounts.
 
 | Path | Game |
 |---|---|
-| `/` | Games4free hub |
+| `/` | Table Night hub |
 | `/wizard/` | Wizard — AMIGO 30th-anniversary rules, all 9 special cards |
 | `/lodestone/` | Lodestone — Splendor rules with an ore theme; twin-deck mode for 5–6 players |
 | `/marvels/` | Seven Marvels — 7 Wonders rules (3–7 players, simultaneous picks), original cities and art |

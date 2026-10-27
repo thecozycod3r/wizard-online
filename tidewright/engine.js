@@ -1,7 +1,7 @@
 // Catan — pure rules engine (an original game; see ~/wizard-deck/tidewright/PLAN.md). No DOM, no network.
 // newGame(players, settings) · act(G, pid, a) · viewFor · waitingOn · autoAction · smartAction · botAction · timerKey · pause
 // Board: axial hexes "q,r". Outposts sit in one of a tile's slots; trails link the centres of two adjacent land tiles.
-// Renown comes from outposts and from public delivery contracts; Open Sea adds fog, ships and isles; Raiders & Beacons
+// Renown comes from outposts and from public delivery contracts; Seafarers adds fog, ships and isles; Cities & Knights
 // adds a visible raider fleet that every player defends against together through a shared beacon.
 
 export const MIN_PLAYERS = 2, MAX_PLAYERS = 6;
@@ -151,7 +151,7 @@ function makeBoard(G) {
     const [q, r] = unkey(k);
     G.tiles[k] = { q, r, land: true, terrain: T[k]?.terrain || "ruins", mark: T[k]?.mark || 0, rich: RICH, slots: 3 };
   }
-  // sea: rings around the coast; with Open Sea the outer rings start fogged and are drawn from a bag when revealed
+  // sea: rings around the coast; with Seafarers the outer rings start fogged and are drawn from a bag when revealed
   const outer = G.R + (G.sea ? 4 : 3);
   for (let q = -outer; q <= outer; q++) for (let r = -outer; r <= outer; r++) {
     const k = key(q, r), d = ring(q, r);
@@ -415,7 +415,7 @@ function respond(G, pid, a, ev) {
 function build(G, pid, a, ev) {
   const h = G.hands[pid], kind = a.kind;
   if (!["trail", "outpost", "ship", "repair"].includes(kind)) err("Unknown build.");
-  if (kind === "ship" && !G.sea) err("Ships come with Open Sea.");
+  if (kind === "ship" && !G.sea) err("Ships come with Seafarers.");
   const c = costOf(G, pid, kind);
   if (!canPay(h, c)) err(`You can't afford a ${kind}.`);
   const count = kind === "trail" ? G.trails.filter(t => t.pid === pid).length : kind === "ship" ? G.ships.filter(s => s.pid === pid).length : mine(G, pid).length;

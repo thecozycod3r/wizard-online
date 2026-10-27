@@ -55,8 +55,8 @@ T = startTable({
   hscroll: ".rail,.resbar,.tabs,.tbl",
   lobby: (L, host, ctx) => {
     const st = L.settings, sea = !!(st.sea ?? 1), raid = !!(st.raiders ?? 1), t = E.targetFor({ sea, raiders: raid }, L.players.length);
-    return `<div class="row" style="justify-content:space-between"><span>Open Sea <small class="muted">fog, ships, isles</small></span>${ctx.seg("sea", [[1, "On"], [0, "Off"]], sea ? 1 : 0, host)}</div>
-    <div class="row" style="justify-content:space-between"><span>Raiders &amp; Beacons <small class="muted">defend the coast together</small></span>${ctx.seg("raiders", [[1, "On"], [0, "Off"]], raid ? 1 : 0, host)}</div>
+    return `<div class="row" style="justify-content:space-between"><span>Seafarers <small class="muted">fog, ships, isles</small></span>${ctx.seg("sea", [[1, "On"], [0, "Off"]], sea ? 1 : 0, host)}</div>
+    <div class="row" style="justify-content:space-between"><span>Cities &amp; Knights <small class="muted">defend the coast together</small></span>${ctx.seg("raiders", [[1, "On"], [0, "Off"]], raid ? 1 : 0, host)}</div>
     <p class="muted" style="margin:0;font-size:14px">First to <b>${t} renown</b> on their own turn wins. About ${20 + 10 * L.players.length + (sea ? 10 : 0) + (raid ? 10 : 0)} minutes.</p>
     <div class="row" style="justify-content:space-between"><span>Graphics on this device</span><span class="seg"><button aria-pressed="${gfx() === "low"}" data-act="gfx" data-v="low">Smooth</button><button aria-pressed="${gfx() === "high"}" data-act="gfx" data-v="high">Beautiful</button></span></div>`;
   },
@@ -205,7 +205,7 @@ function overlay(ctx) {
   if (sheet === "beacon" && v.fleet) {
     const F = v.fleet, by = v.beacon.by, exposed = v.builds.filter(b => !b.burned && E.sectorOf(b.tile) === F.sector);
     const mine = exposed.filter(b => b.pid === me).length;
-    return ctx.sheet("Raiders & the beacon", `<div class="sheetbody"><img class="sheetart" src="art/beacon.webp${V_ART}" alt="" onerror="this.remove()">
+    return ctx.sheet("Cities & Knights", `<div class="sheetbody"><img class="sheetart" src="art/beacon.webp${V_ART}" alt="" onerror="this.remove()">
       <p style="margin-top:0">A raider fleet lands in <b>${F.eta} day${F.eta === 1 ? "" : "s"}</b> (end of round) on the <b>${["east", "south-east", "south-west", "west", "north-west", "north-east"][F.sector]}</b> coast, where <b>${exposed.length}</b> outpost${exposed.length === 1 ? " stands" : "s stand"}${mine ? ` — ${mine} of them yours` : ""}.</p>
       <div class="meter"><i style="width:${Math.min(100, v.beacon.def / Math.max(1, F.strength) * 100)}%"></i><span>Beacon ${v.beacon.def} / strength ${F.strength}</span></div>
       <p class="muted" style="font-size:14px">Anyone can feed the shared beacon on their turn (timber 1, stone 1, copper 2; up to ${E.MUSTER_MAX} a turn). If it holds, the biggest giver earns <b>+2 renown</b> (tied givers +1 each) and others who gave 2+ get 2 silver. If it fails, every player loses one outpost on that coast to fire until they repair it.</p>
