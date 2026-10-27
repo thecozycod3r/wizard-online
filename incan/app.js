@@ -146,7 +146,7 @@ function effect(last, v, prev) {
     if (c.disaster) {
       const lost = Object.entries(c.disaster.lost).filter(([, n]) => n > 0);
       showFx(`<div class="bigcard">${cardHtml(c.id, 0, "deadly")}</div><div class="t">${esc(E.HAZARD_NAME[c.disaster.hazard])}!</div>
-        <div class="l">${Object.keys(c.disaster.lost).length ? `${esc(Object.keys(c.disaster.lost).map(nameOf).join(", "))} flee${lost.length ? " and lose " + lost.map(([p, n]) => `${esc(nameOf(p))} ${n}`).join(", ") : ""}` : "The temple collapses"}</div>`, 3000);
+        <div class="l">${Object.keys(c.disaster.lost).length ? `${esc(Object.keys(c.disaster.lost).map(nameOf).join(", "))} flee${lost.length ? " and lose " + lost.map(([p, n]) => `${esc(nameOf(p))} ${n}`).join(", ") : ""}` : "The temple collapses"} · one ${esc(E.HAZARD_NAME[c.disaster.hazard])} card leaves the game</div>`, 3000);
       setTimeout(shake, fxHold - 2600);
     }
   }

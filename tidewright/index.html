@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0d2230">
+<title>Catan · Table Night</title>
+<meta name="description" content="Catan: settle a 3D island with friends on your phones. Harvest, trade, deliver contracts, sail into the fog and hold the coast against raiders. 2–6 players.">
+<meta property="og:title" content="Catan — join my island">
+<meta property="og:description" content="Tap the link, enter your name, and settle the island.">
+<meta property="og:image" content="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="../shared/kit.css?v=1">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/", "cannon-es": "./vendor/cannon-es.js" } }</script>
+<style>
+/* The island is a WebGL canvas filling the screen; the kit's HTML floats over it and only its panels take touches. */
+:root{--bg:#0b1c26;--bg2:#13293a;--panel:rgba(12,30,42,.78);--line:rgba(255,255,255,.14);--ink:#f4f1e8;--dim:#b9c6cc;--gold:#f2c14e;--gold-2:#ffe2a0;
+  --display:"Fraunces",Georgia,serif;--body:"Inter",system-ui,sans-serif;--num:"Inter",system-ui,sans-serif;color-scheme:dark;--bgimg:none;--dockbg:rgba(10,24,34,.86)}
+body{background:#0b1c26}
+#world{position:fixed;inset:0;width:100vw;height:100dvh;display:block;z-index:0;touch-action:none;outline:none}
+#app{position:relative;z-index:1;pointer-events:none}
+#app .page,#app .bar,#app .rail,#app .contracts,#app .dock,#app .cam,#app .overlay{pointer-events:auto}
+.title{font-family:var(--display);font-weight:800;letter-spacing:-.02em}
+.btn{background:linear-gradient(180deg,#ffe2a0,#e9a63a);color:#2a1a04}
+.btn.ghost{background:rgba(255,255,255,.08);color:var(--ink)}
+.panel{background:rgba(10,26,36,.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.sheet{background:rgba(14,32,44,.97)} .toast{background:var(--bg2)}
+.fx-banner{background:rgba(10,24,34,.9);border-color:rgba(242,193,78,.35)}
+.fx-banner .t{font-family:var(--display);font-weight:800}
+/* landing + lobby read over the slowly turning island */
+body[data-mode="landing"] .page,body[data-mode="join"] .page,body[data-mode="lobby"] .page,body[data-mode="claim"] .page,body[data-mode="left"] .page,body[data-mode="connecting"] .page{background:linear-gradient(180deg,rgba(8,20,28,.25),rgba(8,20,28,.72) 40%,rgba(8,20,28,.85))}
+.heroart{width:min(560px,92vw);aspect-ratio:3/2;border-radius:18px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.55);border:1px solid var(--line);margin-bottom:8px}
+.heroart img{width:100%;height:100%;object-fit:cover;display:block;animation:kb 18s ease-in-out infinite alternate}
+@keyframes kb{to{transform:scale(1.08) translate(-1.5%,1%)}}
+.ri{width:22px;height:22px;border-radius:6px;object-fit:cover;vertical-align:middle;display:inline-block}
+.ri.sm{width:17px;height:17px;border-radius:4px}
+/* game layout */
+#table.tide{height:100dvh;max-width:none;padding:0 8px;padding-top:env(safe-area-inset-top)}
+#table.tide .bar{background:linear-gradient(180deg,rgba(8,20,28,.75),rgba(8,20,28,0));margin:0 -8px;padding:8px 10px 10px}
+.rnd{font-family:var(--display)}
+.raid{display:flex;flex-direction:column;align-items:flex-start;gap:1px;font:800 12px var(--num);background:rgba(160,30,20,.35);border:1px solid rgba(255,120,80,.4);color:#ffd9c8;border-radius:10px;padding:3px 8px;cursor:pointer}
+.raid.near{animation:kpulse .9s ease-in-out infinite;background:rgba(200,40,20,.6)}
+.dd{display:flex;gap:4px}.dd b{width:22px;height:22px;display:grid;place-items:center;border-radius:6px;background:#f6efe0;color:#2a1a10;font:800 13px var(--num);box-shadow:0 2px 4px rgba(0,0,0,.4)}
+.rail{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 10px;flex:none;touch-action:pan-x}
+.pchip{position:relative;flex:none;display:flex;align-items:center;gap:7px;padding:6px 10px 6px 6px;border-radius:12px;background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);min-width:118px}
+.pchip.turn{border-color:var(--pc);box-shadow:0 0 0 2px color-mix(in srgb,var(--pc) 55%,transparent),0 0 18px color-mix(in srgb,var(--pc) 40%,transparent)}
+.pchip .av{width:26px;height:26px;font-size:13px}
+.pchip .nm{font:800 13.5px var(--num);line-height:1.1;white-space:nowrap;max-width:96px;overflow:hidden;text-overflow:ellipsis}
+.pchip .sub{display:block;font-weight:700;font-size:11px;color:var(--dim)}
+.pchip .rv{margin-left:auto;font:800 18px var(--display)}.pchip .rv small{font-size:11px;color:var(--dim)}
+.pchip .crown{position:absolute;top:-9px;left:8px;width:22px;height:16px}
+.pchip .badge{position:absolute;top:-7px;right:6px}
+.pchip .tmr{position:absolute;bottom:-8px;right:8px;background:var(--bg2);border:1px solid var(--line);padding:0 6px;border-radius:999px;line-height:15px}
+.spacer{flex:1;min-height:40px}
+.cam{position:fixed;right:10px;top:calc(env(safe-area-inset-top) + 170px);z-index:3}
+.cam .btn{width:40px;height:40px;padding:0;font-size:20px;border-radius:12px;backdrop-filter:blur(8px)}
+.contracts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:0 0 6px;flex:none;max-width:720px;width:100%;margin:0 auto}
+.contract{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:3px;padding:6px 7px;border-radius:12px;background:linear-gradient(180deg,rgba(246,236,210,.95),rgba(222,204,166,.95));color:#2a1d10;border:1px solid #9a7a45;box-shadow:0 6px 16px rgba(0,0,0,.35);min-width:0}
+.contract.ok{outline:2px solid var(--gold);box-shadow:0 0 0 4px rgba(242,193,78,.25),0 6px 16px rgba(0,0,0,.35);animation:kpulse 1.6s ease-in-out infinite}
+.contract .cn{font:700 12px var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.contract .cneed{display:flex;flex-wrap:nowrap;gap:2px;overflow:hidden}
+.contract .cq{display:inline-flex;align-items:center;gap:1px;font:800 11px var(--num);opacity:.55}.contract .cq.have{opacity:1}
+.contract .crw{font:800 13px var(--num);color:#7a3d06}
+#table.tide .dock{max-width:720px;width:100%;margin:0 auto;padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+.resbar{display:flex;gap:6px;overflow-x:auto;touch-action:pan-x;padding:2px 0}
+.res{flex:none;display:flex;align-items:center;gap:4px;padding:3px 8px 3px 3px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid var(--line)}
+.res b{font:800 15px var(--num);min-width:12px;text-align:center}.res.zero{opacity:.45}
+.res .ri{width:26px;height:26px;border-radius:50%}
+.actions{gap:6px}.actions .btn{flex:1 1 auto;padding:10px 10px;font-size:15px}
+.rollbtn{flex:1 1 100%!important;font-size:20px!important}
+.endbtn{background:linear-gradient(180deg,#a8f0c8,#3fbf7f);color:#06281a}
+.offer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 10px;border-radius:12px;background:rgba(242,193,78,.14);border:1px solid rgba(242,193,78,.5);font-size:14px}
+/* sheets */
+.blist{display:flex;flex-direction:column;gap:8px}
+.bitem{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--line)}
+.bitem[disabled]{opacity:.42;cursor:default}.bitem:not([disabled]):hover{border-color:var(--gold)}
+.bn{font:800 16px var(--display)}.bn small{font:600 12px var(--num);color:var(--dim)}
+.bc{display:flex;gap:6px;align-items:center;justify-self:end}.cost{display:inline-flex;align-items:center;gap:2px;font-weight:800}
+.bd{grid-column:1/-1;font-size:13px;color:var(--dim)}
+.mkt{display:flex;flex-direction:column;gap:6px}
+.mrow{display:grid;grid-template-columns:28px 1fr auto auto;grid-template-areas:"i n b s" "t t t t";align-items:center;gap:4px 8px;padding:8px;border-radius:12px;background:rgba(255,255,255,.05)}
+.mrow>.ri{grid-area:i;width:28px;height:28px}.mrow .mn{grid-area:n;font-weight:800}.mrow .mn small{display:block;font-weight:600;color:var(--dim);font-size:12px}
+.mrow [data-act=buy]{grid-area:b}.mrow [data-act=sell]{grid-area:s}
+.track{grid-area:t;display:flex;gap:3px}.track i{flex:1;text-align:center;font:700 11px var(--num);font-style:normal;padding:2px 0;border-radius:5px;background:rgba(255,255,255,.06);color:var(--dim)}.track i.on{background:var(--gold);color:#2a1a04}
+.tgrid{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 10px;align-items:center}.tgrid>b{font-size:13px;color:var(--dim);text-align:center}
+.tg{display:flex;align-items:center;gap:4px}.tg small{color:var(--dim)}
+.step{display:flex;align-items:center;justify-content:center;gap:8px}.step button{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--ink);font-size:18px}.step button[disabled]{opacity:.3}.step b{min-width:16px;text-align:center}
+.tr{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.clist{display:flex;flex-direction:column;gap:10px}
+.ccard{display:flex;gap:12px;align-items:flex-start;padding:10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.ccard img{width:74px;aspect-ratio:2/3;object-fit:cover;border-radius:8px;flex:none}.ccard p{margin:4px 0 8px;font-size:14px;color:var(--dim)}
+.reqs{display:flex;flex-wrap:wrap;gap:4px}
+.sheetart{width:100%;max-height:160px;object-fit:cover;border-radius:12px;margin-bottom:10px}
+.meter{position:relative;height:26px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid var(--line)}
+.meter i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#ff7a26,#ffd36a);transition:width .6s}
+.meter span{position:relative;display:block;text-align:center;font:800 13px/26px var(--num);color:#fff;text-shadow:0 1px 2px #000}
+.omen{display:flex;gap:14px;align-items:center;text-align:left}.omen img{width:84px;aspect-ratio:2/3;object-fit:cover;border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,.5);flex:none}
+.omen img[src*="contract"]{aspect-ratio:1}
+.hist{display:flex;flex-direction:column;gap:10px} .hist .h{background:var(--bg2);border-radius:12px;padding:10px 12px;display:flex}
+.hist .h .crown{width:24px;height:18px}
+.fx-welcome .wl-fan .c img{aspect-ratio:1;object-fit:cover;border-radius:14px}
+@media (min-width:900px){.cam{top:auto;bottom:24px;right:24px}}
+@media (orientation:landscape) and (max-height:540px){
+  #table.tide{display:flex}
+  #table.tide .dock{position:fixed;right:8px;bottom:8px;width:min(380px,46vw);max-height:calc(100dvh - 90px);overflow-y:auto;border-radius:16px;border-bottom:1px solid var(--line)}
+  .contracts{position:fixed;left:8px;bottom:8px;width:min(420px,48vw);margin:0}
+  .spacer{display:none}.cam{top:auto;bottom:120px;left:10px;right:auto}
+}
+</style>
+</head>
+<body>
+<canvas id="world" aria-label="The island, in 3D"></canvas>
+<div id="app"></div>
+<script type="module" src="app.js?v=1"></script>
+</body>
+</html>
