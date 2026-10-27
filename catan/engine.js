@@ -1,4 +1,4 @@
-// Catan — pure rules engine (an original game; see ~/wizard-deck/tidewright/PLAN.md). No DOM, no network.
+// Catan — pure rules engine with custom island-building rules. No DOM, no network.
 // newGame(players, settings) · act(G, pid, a) · viewFor · waitingOn · autoAction · smartAction · botAction · timerKey · pause
 // Board: axial hexes "q,r". Outposts sit in one of a tile's slots; trails link the centres of two adjacent land tiles.
 // Renown comes from outposts and from public delivery contracts; Seafarers adds fog, ships and isles; Cities & Knights

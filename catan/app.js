@@ -44,7 +44,7 @@ const afford = (v, cost) => E.canPay(v.hand, cost);
 const costHtml = c => Object.entries(c).map(([r, n]) => `<span class="cost">${n > 1 ? `<b>${n}</b>` : ""}${icon(r)}</span>`).join("") || `<span class="muted">free</span>`;
 
 T = startTable({
-  path: "tidewright", letter: "T", engine: E, hook: "__tide", title: "Catan", prefix: "tide-", min: E.MIN_PLAYERS, max: E.MAX_PLAYERS,
+  path: "catan", letter: "T", engine: E, hook: "__tide", title: "Catan", prefix: "tide-", min: E.MIN_PLAYERS, max: E.MAX_PLAYERS,
   defaults: { sea: 1, raiders: 1, timer: 120 }, rules, eyebrow: "Table Night · Settle the island",
   timers: [[60, "1 min"], [120, "2 min"], [180, "3 min"]],
   blurb: "Roll the tides, harvest the island, haggle with friends and race to fill the contracts that make you famous. Sail into the fog for new isles; light the beacon together when raiders come. 2–6 players.",
