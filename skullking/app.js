@@ -30,7 +30,21 @@ export function cardHtml(id, cls = "", attrs = "", as) {
     ${c.rank === 14 ? `<text x="84" y="28" text-anchor="end" font-size="13" font-weight="800" fill="#fff" font-family="Bricolage Grotesque,system-ui">+${c.suit === "k" ? 20 : 10}</text>` : ""}</svg></div>`;
 }
 
-const ui2 = { tig: null, sent: null };
+// Rules "Cards" tab: every kind of card, pictured, strongest first.
+const GUIDE = [
+  ["sk", "Skull King · 1 card", "Beats everything — Pirates, suits, Tigress-as-Pirate. <b>Only a Mermaid beats him.</b> Bonus: +30 for each Pirate he captures."],
+  ["pir-2", "Pirate · 5 cards", "Beat every suit card and the Mermaids. Lose to the Skull King. If several Pirates are played, the <b>first one</b> wins. Bonus: +20 for each Mermaid captured."],
+  ["tig", "Tigress · 1 card", "When you play her, <b>you choose</b>: she counts as a Pirate (to win) or an Escape (to lose)."],
+  ["mer-1", "Mermaid · 2 cards", "Beat every suit card, lose to Pirates. A Mermaid in the same trick as the Skull King <b>captures him</b> — +50 bonus, even if a Pirate is in the trick too."],
+  ["k-14", "Jolly Roger (black) · 1–14", "Trump. Any black card beats every Parrot, Chest and Map card, whatever was led. You may only play black off-suit if you can't follow the led suit."],
+  ["g-09", "Parrot · Chest · Map · 1–14", "Ordinary suits. Follow the suit that was led if you can; highest card of the led suit wins if no trump or special shows up. Each 14 captured: +10 (black 14: +20)."],
+  ["esc-1", "Escape · 5 cards", "Always loses — use it to dodge a trick you don't want. Leading one means the next suit card sets the suit. All escapes: first one wins."],
+];
+RULES.cards = `<h3>The cards, strongest first</h3><div class="cguide">${GUIDE.map(([id, t, d]) => `<div class="cg">${cardHtml(id)}<div><b>${t}</b><p>${d}</p></div></div>`).join("")}</div>
+  <div class="cguide row4">${["g-07", "y-07", "p-07", "k-07"].map(id => cardHtml(id)).join("")}</div>
+  <p class="muted" style="font-size:14px">Parrot (green), Treasure Chest (yellow), Pirate Map (purple), Jolly Roger (black, trump). Specials can always be played, even if you could follow suit. Bonuses only count if you make your bid exactly.</p>`;
+
+const ui2 = { tig: null, sent: null, seen: new Map() };   // seen: trick card → when it first showed (pop-in plays once)
 const T = startTable({
   path: "skullking", letter: "K", engine: E, hook: "__sk", title: "Skull King", prefix: "sk-", min: E.MIN_PLAYERS, max: E.MAX_PLAYERS, defaults: { rounds: 0 },
   rules: RULES, eyebrow: "Table Night · Bid your tricks, matey",
@@ -56,13 +70,17 @@ function game(ctx) {
   for (let k = 1; k < v.players.length; k++) order.push(v.players[(v.me + k) % v.players.length]);
   const chips = [v.players[v.me], ...order].map(p => {
     const i = v.players.indexOf(p), bot = S.bots?.includes(p.id);
-    const bidTxt = v.phase === "bid" ? (p.hasBid ? "bid ✓" : "bidding…") : `bid ${p.bid} · won ${p.won}`;
+    const bidTxt = v.phase === "bid" ? (p.hasBid ? `bid ${p.bid}` : v.turn === p.id ? "bidding…" : "—") : `bid ${p.bid} · won ${p.won}`;
     return `<div class="chip ${v.waiting.includes(p.id) ? "turn" : ""} ${p.id === S.me ? "me" : ""}" data-pid="${p.id}">${p.id === lead ? ctx.CROWN : ""}
       <span class="av" style="background:${ctx.SEAT[i]}">${esc(p.name[0]?.toUpperCase())}</span>
       <span class="nm">${esc(p.name)}${p.id === S.me ? " <span class='muted'>(you)</span>" : ""}<span class="sub">${p.score} pts</span></span>
       <span class="val ${v.phase !== "bid" && p.bid != null ? (p.won === p.bid ? "hit" : p.won > p.bid ? "over" : "") : ""}">${bidTxt}</span>${bot ? `<span class="badge bot">BOT</span>` : ""}<span class="tmr" data-tmr="${p.id}"></span></div>`;
   }).join("");
-  const trick = v.trick.map((t, i) => `<div class="tp ${v.phase === "trickDone" && v.last?.winner === t.pid && i === v.trick.length - 1 ? "" : ""} ${v.last?.kind === "trick" && v.phase !== "play" && v.last.winner === t.pid ? "won" : ""}" style="--i:${i}">${cardHtml(t.id, "", "", t.as)}<span>${esc(ctx.nameOf(t.pid))}</span></div>`).join("");
+  const trick = v.trick.map((t, i) => { const k = `${v.gameId}.${v.round}.${t.pid}.${t.id}`;
+    if (!ui2.seen.has(k)) ui2.seen.set(k, Date.now());
+    const age = Date.now() - ui2.seen.get(k), anim = age < 450;   // a redraw mid pop-in carries on from where it was
+    const won = v.last?.kind === "trick" && v.phase !== "play" && v.last.winner === t.pid ? "won" : "";
+    return `<div class="tp ${anim ? "in" : ""} ${won}" style="--i:${i}${anim && age > 30 ? `;animation-delay:-${age}ms` : ""}">${cardHtml(t.id, "", "", t.as)}<span>${esc(ctx.nameOf(t.pid))}</span></div>`; }).join("");
   return `<div id="table">${ctx.topBar(`<span class="rnd"><small>ROUND</small>${v.round}/${v.totalRounds}</span>${v.lead ? `<span class="leadsuit" style="--c:${SUIT_COL[v.lead]}">${E.SUIT_NAME[v.lead]} led</span>` : ""}`)}
     <div class="scroll"><div class="chips">${chips}</div>
     <div class="trick">${trick || `<span class="muted">${v.phase === "bid" ? `Round ${v.round}: ${v.round} card${v.round === 1 ? "" : "s"} each — bid how many tricks you'll take` : `${esc(ctx.nameOf(v.turn))} leads`}</span>`}</div></div>
@@ -72,8 +90,8 @@ function dock(v, ctx) {
   const mine = ctx.myTurn(), timer = mine ? ` <span class="tmr big" data-tmr="${ctx.S.me}"></span>` : "";
   let status = "", actions = "";
   if (v.phase === "bid") {
-    if (mine) { status = "How many tricks will you take?"; actions = `<div class="bids">${Array.from({ length: v.round + 1 }, (_, n) => `<button class="bidbtn" data-act="bid" data-n="${n}">${n}</button>`).join("")}</div>`; }
-    else status = v.myBid != null ? `You bid ${v.myBid} · waiting for ${v.waiting.length} more` : "Waiting…";
+    if (mine) { const sum = v.players.reduce((s, p) => s + (p.bid ?? 0), 0); status = `How many tricks will you take?${sum ? ` <span class="muted">${sum} bid so far of ${v.round}</span>` : ""}`; actions = `<div class="bids">${Array.from({ length: v.round + 1 }, (_, n) => `<button class="bidbtn" data-act="bid" data-n="${n}">${n}</button>`).join("")}</div>`; }
+    else status = `${esc(ctx.nameOf(v.turn))} is bidding${v.myBid != null ? ` · you bid ${v.myBid}` : ""}`;
   } else if (v.phase === "play") status = mine ? (v.lead && v.legal.length < v.hand.length ? `Follow ${E.SUIT_NAME[v.lead]} if you can — specials always allowed` : "Your turn · play any card") : `${esc(ctx.nameOf(v.turn))} is playing`;
   else if (v.phase === "trickDone") status = `${esc(ctx.nameOf(v.last?.winner))} ${v.last?.winner === ctx.S.me ? "take" : "takes"} the trick`;
   else if (v.phase === "roundOver") status = "Round over · next round in a moment";

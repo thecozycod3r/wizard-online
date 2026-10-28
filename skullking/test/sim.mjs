@@ -18,7 +18,7 @@ ok(W(["esc-1", "esc-2", P("p2", "tig", "escape")]) === 0, "all escapes: the firs
 ok(W([P("p0", "tig", "pirate"), "pir-1"]) === 0, "Tigress as a pirate counts as the first pirate");
 ok(E.trickBonus([P("a", "sk"), P("b", "pir-1"), P("c", "pir-2")], 0) === 60, "Skull King +30 per pirate");
 ok(E.trickBonus([P("a", "pir-1"), P("b", "mer-1"), P("c", "k-14")], 0) === 40, "pirate +20 per mermaid, black 14 +20");
-ok(E.trickBonus([P("a", "sk"), P("b", "mer-1")], 1) === 40, "mermaid takes the Skull King +40");
+ok(E.trickBonus([P("a", "sk"), P("b", "mer-1")], 1) === 50, "mermaid takes the Skull King +50");
 ok(E.roundPoints(3, 3, 10, 5) === 70 && E.roundPoints(2, 4, 30, 5) === -20 && E.roundPoints(0, 0, 0, 6) === 60 && E.roundPoints(0, 1, 0, 6) === -60, "scoring: 20/trick + bonus, -10/off, zero bids ±10×round");
 ok(E.leadSuit([P("a", "pir-1"), P("b", "g-04")]) === null, "a character lead: no suit to follow");
 ok(E.roundsFor(6) === 10 && E.roundsFor(7) === 10 && E.roundsFor(8) === 8, "rounds: 10, but 8 with 8 players");

@@ -1,6 +1,6 @@
 // Skull King (Grandpa Beck's Games) — pure rules engine. No DOM, no network.
 // newGame(players, {rounds}) · act(G, pid, a) · viewFor · waitingOn · autoAction · smartAction · timerKey · pause
-// Actions: {type:"bid", n} (everyone at once) · {type:"play", card, as?} (as = "pirate" | "escape" for the Tigress) · {type:"next"}.
+// Actions: {type:"bid", n} (in turn, from the dealer's left; bids are public) · {type:"play", card, as?} (as = "pirate" | "escape" for the Tigress) · {type:"next"}.
 
 export const MIN_PLAYERS = 2, MAX_PLAYERS = 8;
 export const SUITS = ["g", "y", "p", "k"];   // parrot (green), treasure chest (yellow), pirate map (purple), Jolly Roger (black, trump)
@@ -53,11 +53,10 @@ function deal(G) {
 const pidAt = (G, i) => G.players[i % G.players.length].id;
 
 export function waitingOn(G) {
-  if (G.phase === "bid") return G.players.map(p => p.id).filter(id => !(id in G.bids));
-  if (G.phase === "play") return [pidAt(G, G.turn)];
+  if (G.phase === "bid" || G.phase === "play") return [pidAt(G, G.turn)];
   return [];
 }
-export const timerKey = G => `${G.round}.${G.phase}.${G.trickNo}.${G.trick.length}`;
+export const timerKey = G => `${G.round}.${G.phase}.${G.trickNo}.${G.trick.length}.${Object.keys(G.bids).length}`;
 export const pause = G => (G.phase === "trickDone" ? { ms: 1800, action: { type: "next" } } : G.phase === "roundOver" ? { ms: 5500, action: { type: "next" } } : null);
 
 // the suit to follow: the first suit card played, unless a character (pirate, Skull King, mermaid, Tigress-as-pirate) led
@@ -94,7 +93,7 @@ export function trickBonus(trick, w) {
   trick.forEach((p, i) => { const c = cardOf(p.id); if (c.kind === "suit" && c.rank === 14) b += c.suit === "k" ? 20 : 10; void i; });
   if (win.kind === "pirate") b += 20 * e.filter(x => x.kind === "mermaid").length;
   if (win.kind === "king") b += 30 * e.filter(x => x.kind === "pirate").length;
-  if (win.kind === "mermaid" && e.some(x => x.kind === "king")) b += 40;
+  if (win.kind === "mermaid" && e.some(x => x.kind === "king")) b += 50;
   return b;
 }
 export function roundPoints(bid, won, bonus, round) {
@@ -114,10 +113,12 @@ export function act(G, pid, a) {
   if (a.type === "bid") {
     if (G.phase !== "bid") throw new Error("Bidding is over.");
     if (pid in G.bids) throw new Error("You've already bid.");
+    if (pidAt(G, G.turn) !== pid) throw new Error("It's not your turn to bid.");
     const n = Math.floor(+a.n);
     if (!(n >= 0 && n <= G.round)) throw new Error(`Bid 0 to ${G.round}.`);
     G.bids[pid] = n; G.seq++;
-    if (!waitingOn(G).length) { G.phase = "play"; G.last = { n: ++G.n, kind: "bids", bids: { ...G.bids } }; }
+    if (Object.keys(G.bids).length === G.players.length) { G.phase = "play"; G.turn = G.leader; G.last = { n: ++G.n, kind: "bids", bids: { ...G.bids } }; }
+    else G.turn = (G.turn + 1) % G.players.length;
     return G;
   }
   if (a.type === "play") {
@@ -152,14 +153,13 @@ function endRound(G) {
 }
 
 export function viewFor(G, pid) {
-  const bidding = G.phase === "bid";
   return {
     game: "skullking", gameId: G.gameId, seq: G.seq, phase: G.phase, round: G.round, totalRounds: G.totalRounds,
     me: G.players.findIndex(p => p.id === pid), waiting: waitingOn(G), turn: pidAt(G, G.turn), leader: pidAt(G, G.leader),
     hand: (G.hands[pid] || []).slice(), legal: G.phase === "play" && pidAt(G, G.turn) === pid ? legal(G, pid) : [],
     trick: G.trick.map(p => ({ ...p })), lead: leadSuit(G.trick), myBid: G.bids[pid] ?? null,
     players: G.players.map(p => ({ id: p.id, name: p.name, score: G.score[p.id], won: G.won[p.id], cards: G.hands[p.id].length,
-      bid: bidding ? null : G.bids[p.id] ?? null, hasBid: p.id in G.bids })),
+      bid: G.bids[p.id] ?? null, hasBid: p.id in G.bids })),
     last: G.last ? structuredClone(G.last) : null, result: G.result ? structuredClone(G.result) : null, history: structuredClone(G.history),
   };
 }

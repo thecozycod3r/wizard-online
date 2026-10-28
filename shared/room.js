@@ -168,9 +168,15 @@ export function createRoom(cfg) {
     if (!st || st.code !== S.code) return;
     heard();
     if (H && st.hostPid !== H.me) {
-      if (st.epoch > H.epoch || (st.epoch === H.epoch && seat(st, st.hostPid) < seat(st, H.me))) { H = null; clearTimeout(timer); toast("Back online. Another player kept the game going."); }
-      else return;
+      if (st.epoch > H.epoch || (st.epoch === H.epoch && seat(st, st.hostPid) < seat(st, H.me))) {
+        H = null; clearTimeout(timer); clearTimeout(botTimer); toast("Back online. Another player kept the game going.");
+        return apply(st);   // our own table is void now: take theirs even if our counter ran ahead
+      }
+      return;
     }
+    // two devices briefly running the table at the same epoch: follow the one the hosts themselves pick (lower seat)
+    if (last && !H && st.epoch === last.epoch && st.hostPid !== last.hostPid && seat(st, st.hostPid) > seat(st, last.hostPid) && Date.now() - lastAt < 7000) return;
+    if (last && !H && st.epoch === last.epoch && st.hostPid !== last.hostPid) return apply(st);
     if (last && st.epoch === last.epoch && st.n === last.n) { lastAt = Date.now(); clockSeen = st.clock; clockAt = lastAt; return; }
     if (last && !H && (st.epoch < last.epoch || (st.epoch === last.epoch && st.n < last.n))) return;
     apply(st);
@@ -277,7 +283,9 @@ export function createRoom(cfg) {
       setTimeout(() => {
         if (last || H) return;
         const saved = LS.get(stKey());
-        if (saved?.players?.some(p => p.token === ME.token)) { apply(saved); takeOver(saved, "Nobody else was running this table, so your device has picked it up."); }
+        const others = saved?.players?.some(p => p.token !== ME.token && onlineSet.has(p.id));
+        if (saved?.players?.some(p => p.token === ME.token) && !others) { apply(saved); takeOver(saved, "Nobody else was running this table, so your device has picked it up."); }
+        else if (others) { S.status = "Reconnecting to the table…"; onUpdate(null); }
         else { S.status = "Waiting for the table… ask a player to open the game."; onUpdate(null); }
       }, 5000);
     },

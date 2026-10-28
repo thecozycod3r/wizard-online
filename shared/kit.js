@@ -137,7 +137,7 @@ initAgain(room, `${cfg.path}`);
 
   // ---------------------------------------------------------------- views
   const HS = hscroll(cfg.hscroll || ".tabs,.tbl,.hand,.opps");
-  let hsT = null;
+  let hsT = null, lastHtml = null;
   function render() {
     clearTimeout(hsT);
     if (HS.busy()) { hsT = setTimeout(render, 150); return; }
@@ -150,7 +150,12 @@ initAgain(room, `${cfg.path}`);
     else if (S.mode === "lobby") h = viewLobby();
     else if (S.mode === "game") h = cfg.game(ctx);
     h += viewOverlay();
-    $app.innerHTML = h;
+    if (h === lastHtml && $app.firstChild) return;   // nothing changed (e.g. a presence ping): leave the screen alone
+    // keep already-decoded pictures: a fresh <img> blanks for a frame while it decodes, which reads as flicker
+    const pics = new Map();
+    for (const i of $app.querySelectorAll("img")) { const k = i.getAttribute("src"); if (i.complete) (pics.get(k) || pics.set(k, []).get(k)).push(i); }
+    $app.innerHTML = h; lastHtml = h;
+    for (const n of $app.querySelectorAll("img")) { const o = pics.get(n.getAttribute("src"))?.pop(); if (o) { for (const a of n.attributes) o.setAttribute(a.name, a.value); n.replaceWith(o); } }
     if (sc) { const e = document.querySelector(".scroll"); if (e) e.scrollTop = sc; }
     if (sb) { const e = document.querySelector(".sheetbody"); if (e) e.scrollTop = sb; }
     HS.restore(hs);

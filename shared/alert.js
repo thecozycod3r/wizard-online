@@ -1,49 +1,12 @@
-// "Your turn" alerts for every game. Android buzzes; iPhones can't vibrate from a web page, so there's a short
-// chime too (on by default, switchable per device). iOS only lets a page make sound after the person has tapped
-// it once, so the audio is unlocked on the first tap anywhere.
-const KEY = "g4f-sound";
-let ac = null;
-let on = (() => { try { return localStorage.getItem(KEY) !== "off"; } catch { return true; } })();
-
-function unlock() {
-  try {
-    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
-    if (ac.state === "suspended") ac.resume();
-  } catch { ac = null; }
-}
-addEventListener("pointerdown", unlock, { capture: true, passive: true });
-addEventListener("touchend", unlock, { capture: true, passive: true });
-
-function tone(freqs, dur = 0.12, vol = 0.16) {
-  if (!on || !ac || document.visibilityState !== "visible") return;
-  try {
-    if (ac.state === "suspended") ac.resume();
-    const t0 = ac.currentTime + 0.01;
-    freqs.forEach((f, i) => {
-      const o = ac.createOscillator(), g = ac.createGain(), t = t0 + i * dur;
-      o.type = "sine"; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 1.9);
-      o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur * 2);
-    });
-  } catch { /* no sound on this device */ }
-}
-
+// "Your turn" alerts for every game: a short buzz on phones that can (Android). The games make no sound at all —
+// alerts.on stays false so anything that asks (Catan's table sounds) stays quiet, and there is no sound switch.
 export const alerts = {
-  yourTurn() { navigator.vibrate?.([18, 40, 18]); tone([660, 880]); },
-  hurry() { navigator.vibrate?.(60); tone([520], 0.08, 0.1); },
-  get on() { return on; },
-  toggle() {
-    on = !on;
-    try { localStorage.setItem(KEY, on ? "on" : "off"); } catch { /* storage off */ }
-    if (on) { unlock(); tone([880], 0.08); }
-    return on;
-  },
+  yourTurn() { navigator.vibrate?.([18, 40, 18]); },
+  hurry() { navigator.vibrate?.(60); },
+  get on() { return false; },
+  toggle() { return false; },
 };
-
-// The switch, for the lobby and the Rules sheet.
-export const soundRow = () => `<div class="row sndrow" style="justify-content:space-between;align-items:center;gap:10px">
-  <span>Turn sound on this phone</span>
-  <button class="btn ghost small" data-act="sound" aria-pressed="${on}">${on ? "🔔 On" : "🔕 Off"}</button></div>`;
+export const soundRow = () => "";
 
 // Links opened inside Instagram / Facebook / TikTok etc. run in that app's own browser, which forgets the game when
 // it closes. Nudge people to open the game in their real browser so they can get back in later.
