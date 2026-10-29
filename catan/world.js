@@ -11,7 +11,8 @@ const S3 = Math.sqrt(3);
 export const hexXZ = k => { const [q, r] = typeof k === "string" ? unkey(k) : k; return [S3 * (q + r / 2), 1.5 * r]; };
 const TOP = 0.32;                       // land surface height at a tile's edge
 const AMP = { pine: 0.12, quarry: 0.2, flax: 0.05, barley: 0.04, copper: 0.3, ruins: 0.06 };
-const SLOT = [0, 1, 2].map(i => { const a = Math.PI / 2 + i * (2 * Math.PI / 3) + Math.PI / 6; return [Math.cos(a) * 0.5, Math.sin(a) * 0.5]; });
+// trails leave a tile towards its neighbours (0°, 60°, … 300°); outpost slots sit between them at 30°, 150°, 270° so no trail runs under a house
+const SLOT = [0, 1, 2].map(i => { const a = Math.PI / 6 + i * (2 * Math.PI / 3); return [Math.cos(a) * 0.5, Math.sin(a) * 0.5]; });
 const VER = "?v=1";
 
 // ---------------------------------------------------------------- noise (value noise, deterministic per tile)

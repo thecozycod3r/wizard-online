@@ -5,6 +5,7 @@ const c = o => Object.entries(o).map(([r, n]) => `${n > 1 ? n + " " : ""}${r}`).
 export function rules(s = {}, n = 4) {
   const sea = !!(s.sea ?? 1), raiders = !!(s.raiders ?? 1), target = s.target > 0 ? +s.target : targetFor({ sea, raiders }, n || 4);
   const basics = `<h3>The idea</h3><p>Settle a windswept island, harvest it, trade and win renown. The first player to have <b>${target} renown</b> during their own turn wins at once.</p>
+    <h3>Moving around</h3><p><b>Phone:</b> drag one finger to turn the island, pinch to zoom, drag two fingers to slide the map. <b>Computer:</b> drag to turn, scroll to zoom, right-drag to slide. Tap a glowing spot to place or build; ⌖ snaps back to the whole island.</p>
     <h3>Setup</h3><p>In snake order (1→last, then last→1) everyone places two outposts for free, each with a free trail leaving its tile to a neighbouring land tile. You can't settle a tile twice. Your <b>second</b> outpost pays 2 of its tile's good (the ruins pay 2 silver). Everyone starts with 1 timber, 1 stone, 1 flax, 1 grain and 3 silver.</p>
     <h3>Your turn</h3><ol><li><b>Roll the tides.</b> Every tile showing the total harvests: each standing outpost on it gets 1 of the tile's good (2 in that good's season). If the roll gave you nothing, you take 1 silver in <i>dock wages</i>. On <b>doubles</b> an Omen is drawn after the harvest.</li>
       <li><b>Act</b> in any order: build, deliver one contract, use the market, offer trades, play one charter${sea ? ", sail ships" : ""}${raiders ? ", feed the beacon" : ""}.</li>

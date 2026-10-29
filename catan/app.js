@@ -67,12 +67,28 @@ document.body.dataset.mode = "landing";
 
 // ---------------------------------------------------------------- view hooks
 function onView(v, prev) {
-  if (gameSeen !== v.gameId) { gameSeen = v.gameId; world.reset(); mode = null; sheet = null; world.sync(v, { instant: true }); world.home(1); world.setMode("game"); return; }
+  if (gameSeen !== v.gameId) { gameSeen = v.gameId; world.reset(); mode = null; sheet = null; world.sync(v, { instant: true }); world.home(1); world.setMode("game"); navTip(); return; }
   if (mode?.kind === "setup" && v.phase !== "setup") mode = null;
   if (holdSync) { pendingView = v; return; }
   world.sync(v);
   if (mode && (!isMine(v) || v.phase === "gameOver")) mode = null;
   if (prev?.cur !== v.cur && isMine(v)) { mode = null; sheet = null; }
+}
+// First game on a phone: a one-time card on how to move around the 3D island.
+function navTip(waited) {
+  if (!matchMedia("(pointer:coarse)").matches || LS.get("tide-navtip") || document.getElementById("navtip")) return;
+  if (!waited || document.querySelector(".fx-welcome")) return void setTimeout(() => navTip(true), waited ? 400 : 1500); // let the welcome splash come and go
+  const el = document.createElement("div");
+  el.id = "navtip";
+  el.innerHTML = `<div class="card"><h3>Moving around the island</h3><ul>
+    <li><b>☝️</b><span><b>Drag one finger</b> to turn the island</span></li>
+    <li><b>🤏</b><span><b>Pinch</b> to zoom in and out</span></li>
+    <li><b>✌️</b><span><b>Drag two fingers</b> to slide the map</span></li>
+    <li><b>✨</b><span><b>Tap a glowing spot</b> to place or build there</span></li>
+    <li><b>⌖</b><span>The button on the right <b>snaps back</b> to the whole island</span></li></ul>
+    <p>Tap a contract or a player for details. This is also in Rules.</p><button class="btn big">Got it</button></div>`;
+  el.addEventListener("click", () => { LS.set("tide-navtip", 1); el.remove(); });
+  document.body.appendChild(el);
 }
 function afterRender(ctx) {
   const S = ctx.S, v = ctx.V();
