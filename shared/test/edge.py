@@ -137,7 +137,9 @@ with sync_playwright() as pw:
     check("game finishes and every screen agrees", len(set(fin)) == 1 and fin[0].startswith("gameOver"), fin[0][:60])
 
     # 12. play again returns everyone to the lobby with the same seats
-    host.evaluate(f"() => {J}.room.backToLobby()")
+    # whoever runs the table now (a reload can hand it to another phone) is the one who sees Play again
+    runner = next((p for p in pages if p.evaluate(f"() => {J}.room.isHost")), host)
+    runner.evaluate(f"() => {J}.room.backToLobby()")
     check("'Play again' brings everyone back to the lobby", wait(lambda: all(p.evaluate(f"() => {J}.S.mode") == "lobby" for p in pages), 20))
 
     check("no page errors", not errs, str(errs[:3]))
