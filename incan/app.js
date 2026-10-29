@@ -5,12 +5,12 @@ import { alerts, soundRow, inAppHint } from "../shared/alert.js";
 import { hscroll } from "../shared/hscroll.js";
 import { RULES } from "./rules.js";
 import { preload } from "../shared/preload.js";
-import { GEM, hazard, artifact, TORCH, CAMP, TEMPLE, TREASURE, ALL_ART, artUrl } from "./art.js";
+import { GEM, pile, hazard, artifact, TORCH, CAMP, TEMPLE, TREASURE, ALL_ART, artUrl } from "./art.js";
 
 const $app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const SEAT = ["#f3d48a", "#7fb0ff", "#5fd39a", "#ff8a73", "#c6a2ff", "#f5a8d6", "#7fe3e0", "#ffc27a"];
-const CROWN = `<svg class="crown" viewBox="0 0 30 22" aria-label="Carrying the most"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1b0"/><stop offset=".55" stop-color="#f2c14e"/><stop offset="1" stop-color="#b7832a"/></linearGradient></defs><path d="M2 7l6.5 5L15 2l6.5 10L28 7l-2.6 12H4.6z" fill="url(#cg)" stroke="#7a5418" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.4" y="17.6" width="21.2" height="3.4" rx="1.2" fill="url(#cg)" stroke="#7a5418" stroke-width="1"/></svg>`;
+const CROWN = `<svg class="crown" viewBox="0 0 30 22" aria-label="Leading"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1b0"/><stop offset=".55" stop-color="#f2c14e"/><stop offset="1" stop-color="#b7832a"/></linearGradient></defs><path d="M2 7l6.5 5L15 2l6.5 10L28 7l-2.6 12H4.6z" fill="url(#cg)" stroke="#7a5418" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.4" y="17.6" width="21.2" height="3.4" rx="1.2" fill="url(#cg)" stroke="#7a5418" stroke-width="1"/></svg>`;
 const LS = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* off */ } } };
 
 const ui = { overlay: null, tab: "basics", shownLast: null, dealt: new Set(), dealtRound: 0 };
@@ -29,10 +29,27 @@ const me = () => V()?.players[V().me];
 const nameOf = pid => (pid === S.me ? "You" : V()?.players.find(p => p.id === pid)?.name || "?");
 const plainName = pid => V()?.players.find(p => p.id === pid)?.name || "?";
 const waitingMe = () => V()?.waiting.includes(S.me);
-function carrier(v) {
-  const max = Math.max(...v.players.map(p => p.carry));
-  const top = v.players.filter(p => p.carry === max && p.inside);
+// crown: only a single top scorer gets it
+function leader(v) {
+  const max = Math.max(...v.players.map(p => p.points));
+  const top = v.players.filter(p => p.points === max);
   return top.length === 1 && max > 0 ? top[0].id : null;
+}
+const potOf = v => v.path.reduce((s, x) => s + x.left, 0);
+// the pot number counts up/down once the gems have landed (t0 can be in the future)
+function potNow(pot) {
+  const a = ui.potAnim; if (!a) return pot;
+  const k = (performance.now() - a.t0) / a.dur;
+  if (k >= 1 || a.to !== pot) { ui.potAnim = null; return pot; }
+  return k <= 0 ? a.from : Math.round(a.from + (a.to - a.from) * (1 - (1 - k) ** 3));
+}
+function tickPot() {
+  const el = document.querySelector(".potn"), pot = ui.potAnim?.to;
+  if (pot == null) return;
+  const n = potNow(pot);
+  if (el) el.textContent = n;
+  if (ui.potAnim) requestAnimationFrame(tickPot);
+  else flash("#pot", "pop");
 }
 
 let tt;
@@ -51,6 +68,12 @@ function onUpdate(prev) {
     ui.fresh = !!(prev && key && key !== ui.shownLast && (v.last.kind === "round" ? prev.round !== v.round : true));
     if (ui.fresh) effect(v.last, v, prev);
     if (key) ui.shownLast = key;
+    const np = potOf(v);
+    if (ui.potGame === v.gameId && ui.potVal != null && np !== ui.potVal) {
+      ui.potAnim = { from: ui.potVal, to: np, t0: performance.now() + (ui.fresh ? fxHold + 650 : 0), dur: 650 };
+      requestAnimationFrame(tickPot);
+    }
+    ui.potVal = np; ui.potGame = v.gameId;
     if (v.phase === "gameOver" && prev?.phase !== "gameOver") setTimeout(() => { ui.overlay = "over"; render(); burst(); }, fxHold + 400);
     const mineNow = waitingMe();
     const minePrev = prev ? prev.waiting.includes(S.me) && prev.path.length === v.path.length && prev.round === v.round : false;
@@ -97,12 +120,12 @@ function badge(pid, icon, delay = 0) {
 }
 function motion(last, v) {
   if (S.mode !== "game") return;
-  const path = rectOf("#path"), gemIcon = GEM.turq;
+  const path = rectOf("#pot") || rectOf("#path"), gemIcon = GEM.turq;
   // everyone's Torch / Camp pops up over their name
   if (last.kind === "turn") Object.entries(last.choices).forEach(([pid, go], i) => badge(pid, go ? TORCH : CAMP, i * 60));
   // campers carry their gems home: from the path to them, then (for me) into my tent
   for (const [i, pid] of (last.leavers || []).entries()) {
-    const n = Math.min(6, Math.max(1, last.split?.carried?.[pid] || 0));
+    const n = Math.min(6, Math.max(1, last.split?.each || 0));
     for (let k = 0; k < n; k++) fly(gemIcon, path, chip(pid), 20, 300 + i * 120 + k * 70);
     flash(`.ex[data-pid="${pid}"]`, "glow", 500 + i * 120);
     if (pid === S.me) for (let k = 0; k < n; k++) fly(gemIcon, chip(pid), rectOf(".mine"), 20, 900 + k * 70);
@@ -113,20 +136,22 @@ function motion(last, v) {
   for (const c of last.cards || []) {
     const card = E.cardOf(c.id), from = rectOf(`.pc[data-id="${c.id}"]`);
     if (card.kind === "treasure" && from) setTimeout(() => burstAt(from.left + from.width / 2, from.top + from.height / 2, 26, ["#2ec4b6", "#8ff3e6", "#f2c14e", "#ffe39a"]), t + 150);
-    if (card.kind === "treasure" && c.each) {
-      c.to.forEach((pid, i) => { for (let k = 0; k < Math.min(4, c.each); k++) fly(gemIcon, from, chip(pid), 18, t + i * 90 + k * 60); flash(`.ex[data-pid="${pid}"] .carry`, "pop", t + 700 + i * 90); });
+    if (card.kind === "treasure" && from) {
+      // its gems pour into the pot
+      const to = rectOf("#pot");
+      for (let k = 0; k < Math.min(7, Math.ceil(card.value / 2.5)); k++) fly(k % 3 ? gemIcon : GEM.gold, from, to, 18, t + 250 + k * 55);
     }
     if (card.kind === "hazard" && !c.disaster) { flash(`.hz [data-hz="${card.hazard}"]`, "pop", t); flash(`.hz [data-hz="${card.hazard}"]`, "glow", t); }
     if (card.kind === "artifact") flash(`.pc[data-id="${c.id}"]`, "glow", t);
-    if (c.disaster) { Object.keys(c.disaster.lost).forEach(pid => flash(`.ex[data-pid="${pid}"]`, "hurt", 0)); vignette(); }
+    if (c.disaster) { flash("#pot", "lost", 0); c.disaster.fled.forEach(pid => flash(`.ex[data-pid="${pid}"]`, "hurt", 0)); vignette(); }
     t += 450;
   }
 }
 
 function cardHtml(id, left = 0, extra = "") {
   const c = E.cardOf(id);
-  // a treasure card shows only what's still lying on it (the pot), not its face value
-  if (c.kind === "treasure") return `<div class="pc t ${left ? "" : "empty"} ${extra}" data-id="${id}">${TREASURE}${left ? `<span class="v">${left}</span>` : ""}</div>`;
+  // treasure card: what it added to the pot; dimmed once campers have taken its gems
+  if (c.kind === "treasure") return `<div class="pc t ${left ? "" : "banked"} ${extra}" data-id="${id}">${TREASURE}<span class="v">+${c.value}</span></div>`;
   if (c.kind === "hazard") return `<div class="pc h ${extra}" data-id="${id}">${hazard(c.hazard)}</div>`;
   return `<div class="pc a ${extra}" data-id="${id}">${artifact(id)}</div>`;
 }
@@ -136,7 +161,7 @@ function effect(last, v, prev) {
     const order = Object.keys(last.choices);
     let html = `<div class="t" style="font-size:clamp(22px,6vw,32px)">${last.leavers.length === 1 ? `${esc(nameOf(last.leavers[0]))} ${last.leavers[0] === S.me ? "head" : "heads"} back to camp` : last.leavers.length ? `${last.leavers.length} head back to camp` : "Everyone pushes on"}</div>
       <div class="choices">${order.map((pid, i) => `<div class="c" style="animation-delay:${i * .07}s"><div class="i">${last.choices[pid] ? TORCH : CAMP}</div><span>${esc(nameOf(pid))}</span></div>`).join("")}</div>`;
-    if (last.split?.each) html += `<div class="l">Each camper also picks up ${last.split.each} from the path</div>`;
+    if (last.split?.each) html += `<div class="l">${last.leavers.length === 1 ? `${last.leavers[0] === S.me ? "You take" : "Takes"} ${last.split.each} from the pot` : `Each camper takes ${last.split.each} from the pot`}${last.split.rest ? ` · ${last.split.rest} left in the pot` : ""}</div>`;
     if (last.artifacts?.length) html += `<div class="l">${esc(nameOf(last.leavers[0]))} ${last.leavers[0] === S.me ? "grab" : "grabs"} ${last.artifacts.length === 1 ? "an artifact" : last.artifacts.length + " artifacts"} (+${last.artifacts.reduce((s, a) => s + a.value, 0)})!</div>`;
     if (last.leavers.length) showFx(html, 2400);
   }
@@ -144,9 +169,8 @@ function effect(last, v, prev) {
   for (const c of last.cards || []) {
     const card = E.cardOf(c.id);
     if (c.disaster) {
-      const lost = Object.entries(c.disaster.lost).filter(([, n]) => n > 0);
       showFx(`<div class="bigcard">${cardHtml(c.id, 0, "deadly")}</div><div class="t">${esc(E.HAZARD_NAME[c.disaster.hazard])}!</div>
-        <div class="l">${Object.keys(c.disaster.lost).length ? `${esc(Object.keys(c.disaster.lost).map(nameOf).join(", "))} flee${lost.length ? " and lose " + lost.map(([p, n]) => `${esc(nameOf(p))} ${n}`).join(", ") : ""}` : "The temple collapses"} · one ${esc(E.HAZARD_NAME[c.disaster.hazard])} card leaves the game</div>`, 3000);
+        <div class="l">${c.disaster.fled.length ? `${esc(c.disaster.fled.map(nameOf).join(", "))} flee` : "The temple collapses"}${c.disaster.pot ? ` · the pot of ${c.disaster.pot} is lost` : ""} · one ${esc(E.HAZARD_NAME[c.disaster.hazard])} card leaves the game</div>`, 3000);
       setTimeout(shake, fxHold - 2600);
     }
   }
@@ -293,11 +317,14 @@ function viewLobby() {
 }
 
 function viewGame() {
-  const v = V(), P = me(), lead = carrier(v);
+  const v = V(), P = me(), lead = leader(v);
   const hz = E.HAZARDS.map(h => `<div class="h ${v.seen[h] ? "warn" : ""}" data-hz="${h}" title="${E.HAZARD_NAME[h]}">${hazard(h)}<small>${v.seen[h] ? "1 out!" : "safe"}</small>${v.gone[h] ? `<span class="gone">−${v.gone[h]}</span>` : ""}</div>`).join("");
   // a card gets the deal animation once, the first time it shows up on this phone
   if (ui.dealtRound !== `${v.gameId}.${v.round}`) { ui.dealtRound = `${v.gameId}.${v.round}`; ui.dealt = new Set(); }
-  const pot = v.path.reduce((s, x) => s + x.left, 0);
+  const pot = potOf(v), shown = potNow(pot);
+  const potBox = `<div class="potbox ${pot ? "" : "empty"}" id="pot"><span class="potart">${TREASURE}</span>
+    <span class="pottxt"><small>THE POT</small><b class="potn">${shown}</b></span>
+    <span class="potcap"><span class="potpile">${pile(pot, 8)}</span>${pot ? "Campers split it evenly · leftovers stay" : "Empty · treasure cards fill it"}</span></div>`;
   const path = `<div class="pc temple">${TEMPLE}</div>` + v.path.map((s, i) => {
     const fresh = !ui.dealt.has(s.id); ui.dealt.add(s.id);
     return cardHtml(s.id, s.left, fresh ? "new" : "");
@@ -307,14 +334,14 @@ function viewGame() {
     const sub = v.phase === "gameOver" ? `${p.points} points` : out ? "at camp" : v.phase === "decide" ? (p.decided ? "decided" : "deciding…") : "in the temple";
     return `<div class="ex ${out ? "out" : ""} ${p.id === S.me ? "me" : ""}" data-pid="${p.id}">${p.id === lead ? CROWN : ""}${v.phase === "decide" && p.decided && p.inside ? `<span class="dec">READY</span>` : ""}
       <span class="st">${out ? CAMP : TORCH}</span><span class="nm">${esc(p.name)}${p.id === S.me ? " <span class='muted' style='font-weight:700'>(you)</span>" : ""}<span class="sub"><b class="pts">⛺${p.points ?? 0}</b> · ${esc(sub)}${bot ? "" : off ? " · away" : ""} <span class="tmr" data-tmr="${p.id}"></span></span></span>
-      ${bot ? `<span class="badge bot">BOT</span>` : ""}<span class="arts">${p.artifacts.map(a => artifact(a.id)).join("")}</span>${p.inside && p.carry ? `<span class="carry">${p.carry}<i class="gem">${GEM.turq}</i></span>` : ""}</div>`;
+      ${bot ? `<span class="badge bot">BOT</span>` : ""}<span class="arts">${p.artifacts.map(a => artifact(a.id)).join("")}</span></div>`;
   }).join("");
   return `<div id="table">
     <div class="bar"><div class="info"><span class="rnd"><small>TEMPLE</small>${v.round} of ${v.rounds}</span>${S.net ? "" : `<span class="badge off">OFFLINE</span>`}</div>
       <button class="btn ghost small" data-act="leave-ask" aria-label="Leave the game"><span aria-hidden="true">🚪</span><span class="lvt">Leave</span></button>
       <button class="btn ghost small" data-act="scores" aria-label="Scores"><span class="sci" aria-hidden="true">🏆</span><span class="sct">Scores</span></button>${rulesBtn("small")}</div>
     <div class="scroll"><div class="hz">${hz}</div>
-      ${pot ? `<div class="pot">Pot on the path: <b>${pot}</b> gem${pot === 1 ? "" : "s"} <span class="muted">· split by whoever heads back</span></div>` : ""}
+      ${v.phase === "gameOver" ? "" : potBox}
       <div class="path" id="path">${path}</div>
       <div class="exp">${ex}</div></div>
     ${dock(v, P)}</div>`;
@@ -322,12 +349,12 @@ function viewGame() {
 
 function dock(v, P) {
   const timer = waitingMe() ? ` <span class="tmr big" data-tmr="${S.me}"></span>` : "";
-  const mine = P ? `<div class="mine"><span>Carrying <b>${P.carry}</b></span><span>Tent <b>${P.tent ?? "?"}</b></span><span>Artifacts <b>${P.artifacts.length}</b></span></div>` : "";
+  const mine = P ? `<div class="mine"><span>Tent <b>${P.tent ?? "?"}</b></span><span>Artifacts <b>${P.artifacts.length}</b></span></div>` : "";
   let status = "", actions = "";
   const left = v.path.reduce((s, x) => s + x.left, 0);
   if (v.phase === "decide") {
     if (waitingMe()) {
-      status = `Go deeper, or head back${P.carry ? ` with ${P.carry}` : ""}${left ? ` (+ a share of ${left} on the path)` : ""}?`;
+      status = `Go deeper, or camp${left ? ` and split the pot of ${left}` : ""}?`;
       actions = `<button class="choice torch" data-act="choose" data-go="1">${TORCH}Torch<small>go deeper</small></button><button class="choice camp" data-act="choose" data-go="0">${CAMP}Camp<small>bank it</small></button>`;
     } else if (P?.inside) status = `You chose ${v.myChoice ? "the torch" : "camp"} · waiting for ${v.waiting.length} more`;
     else status = `You're safe at camp · ${v.players.filter(p => p.inside).length} still exploring`;
@@ -364,7 +391,7 @@ function rulesTabs() {
 }
 function scores() {
   const v = V();
-  return `<div class="tbl"><table><tr><th>Explorer</th><th>Carrying</th><th>Tent</th><th>Artifacts</th><th>Points</th></tr>${v.players.slice().sort((a, b) => b.points - a.points).map(p => `<tr><td>${esc(nameOf(p.id))}</td><td>${p.inside ? p.carry : "–"}</td><td>${p.tent}</td><td>${p.artifacts.length ? p.artifacts.map(a => a.value).join(" + ") : "–"}</td><td><b>${p.points}</b></td></tr>`).join("")}</table></div>
+  return `<div class="tbl"><table><tr><th>Explorer</th><th>Tent</th><th>Artifacts</th><th>Points</th></tr>${v.players.slice().sort((a, b) => b.points - a.points).map(p => `<tr><td>${esc(nameOf(p.id))}</td><td>${p.tent}</td><td>${p.artifacts.length ? p.artifacts.map(a => a.value).join(" + ") : "–"}</td><td><b>${p.points}</b></td></tr>`).join("")}</table></div>
     <p class="muted" style="font-size:13px">Tent = gems banked at camp; Points = tent plus artifacts. Artifacts: the first three out score 5, later ones 10 (${v.artifactsOut} out so far).</p>`;
 }
 function podium() {

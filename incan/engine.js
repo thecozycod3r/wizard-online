@@ -26,7 +26,7 @@ export function newGame(players) {
     pool: [...TREASURES.map((_, i) => "t" + i), ...HAZARDS.flatMap(h => [1, 2, 3].map(k => `h-${h}-${k}`))],   // cards still in the game
     removed: [],          // hazard cards gone for good
     artifactsOut: 0,      // how many artifacts have left the temple (first three score 5)
-    pl: Object.fromEntries(players.map(p => [p.id, { tent: 0, artifacts: [], carry: 0, inside: true, roundsSafe: 0 }])),
+    pl: Object.fromEntries(players.map(p => [p.id, { tent: 0, artifacts: [], inside: true, roundsSafe: 0 }])),
     deck: [], path: [], choices: {}, last: null, log: [], result: null,
   };
   startRound(G);
@@ -40,7 +40,7 @@ function startRound(G) {
   G.deck = shuffle(G.pool.slice());
   G.path = [];
   G.choices = {};
-  for (const p of G.players) Object.assign(G.pl[p.id], { carry: 0, inside: true });
+  for (const p of G.players) Object.assign(G.pl[p.id], { inside: true });
   G.roundArtifact = art;
   const ev = { kind: "round", round: G.round, artifact: art, cards: [] };
   // nobody would leave before the first card, so it's turned at once — and another if it's a Hazard
@@ -58,17 +58,16 @@ function flip(G, ev) {
   const c = cardOf(id), here = inside(G), slot = { id, left: 0 };
   G.path.push(slot);
   const e = { id };
+  // house rule (25 Oct 2026): nobody carries gems — every treasure goes into the pot on the path
   if (c.kind === "treasure") {
-    const each = Math.floor(c.value / here.length);
-    for (const p of here) G.pl[p].carry += each;
-    slot.left = c.value - each * here.length;
-    Object.assign(e, { each, left: slot.left, to: here.slice() });
+    slot.left = c.value;
+    Object.assign(e, { value: c.value, pot: G.path.reduce((s, x) => s + x.left, 0) });
   }
   if (c.kind === "hazard") {
     const twice = G.path.filter(s => s !== slot && cardOf(s.id).kind === "hazard" && cardOf(s.id).hazard === c.hazard).length > 0;
     if (twice) {
-      e.disaster = { hazard: c.hazard, lost: Object.fromEntries(here.map(p => [p, G.pl[p].carry])) };
-      for (const p of here) G.pl[p].carry = 0;
+      e.disaster = { hazard: c.hazard, fled: here.slice(), pot: G.path.reduce((s, x) => s + x.left, 0) };
+      for (const s of G.path) s.left = 0;   // the pot is lost
       G.pool = G.pool.filter(x => x !== id); G.removed.push(id);   // this Hazard card is gone for the rest of the game
       ev.cards.push(e);
       endRound(G, ev, c.hazard);
@@ -82,7 +81,7 @@ function endRound(G, ev, disaster) {
   // artifacts still on the path are lost forever
   const lost = G.path.filter(s => cardOf(s.id).kind === "artifact").map(s => s.id);
   G.pool = G.pool.filter(x => !lost.includes(x));
-  for (const p of G.players) { G.pl[p.id].inside = false; G.pl[p.id].carry = 0; }
+  for (const p of G.players) { G.pl[p.id].inside = false; }
   G.log.push({ round: G.round, disaster, lostArtifacts: lost, path: G.path.map(s => s.id) });
   ev.end = { disaster, lostArtifacts: lost };
   if (G.round >= ROUNDS) return finish(G);
@@ -130,11 +129,11 @@ function resolve(G) {
   const here = inside(G), leavers = here.filter(p => !G.choices[p]), stayers = here.filter(p => G.choices[p]);
   const ev = { kind: "turn", round: G.round, choices: { ...G.choices }, leavers, cards: [] };
   if (leavers.length) {
-    // leavers share what's left on the path; the remainder stays where it is
+    // leavers split the pot evenly; what can't be split stays in the pot
     const onPath = G.path.reduce((s, x) => s + x.left, 0), each = Math.floor(onPath / leavers.length);
     let rest = onPath - each * leavers.length;
     for (const s of G.path) { const keep = Math.min(s.left, rest); rest -= keep; s.left = keep; }
-    ev.split = { each, carried: Object.fromEntries(leavers.map(p => [p, G.pl[p].carry + each])) };
+    ev.split = { each, rest: onPath - each * leavers.length };
     let arts = [];
     if (leavers.length === 1) {
       arts = G.path.filter(s => cardOf(s.id).kind === "artifact").map(s => s.id);
@@ -146,7 +145,7 @@ function resolve(G) {
       G.pool = G.pool.filter(x => !arts.includes(x));
       ev.artifacts = arts.map(id => ({ id, value: G.pl[leavers[0]].artifacts.find(x => x.id === id).value }));
     }
-    for (const p of leavers) { const P = G.pl[p]; P.tent += P.carry + each; P.carry = 0; P.inside = false; P.roundsSafe++; }
+    for (const p of leavers) { const P = G.pl[p]; P.tent += each; P.inside = false; P.roundsSafe++; }
   }
   G.choices = {};
   if (stayers.length) flip(G, ev);
@@ -164,7 +163,7 @@ export function viewFor(G, pid) {
     gone: Object.fromEntries(HAZARDS.map(h => [h, G.removed.filter(x => cardOf(x).hazard === h).length])),
     players: G.players.map(p => {
       const P = G.pl[p.id];
-      return { id: p.id, name: p.name, inside: P.inside, carry: P.carry, decided: p.id in G.choices, artifacts: P.artifacts.map(a => ({ ...a })),
+      return { id: p.id, name: p.name, inside: P.inside, decided: p.id in G.choices, artifacts: P.artifacts.map(a => ({ ...a })),
         tent: P.tent, points: score(G, p.id) };   // tents are open to everyone (house rule, 24 Oct 2026)
     }),
     last: G.last ? structuredClone(G.last) : null, result: G.result ? structuredClone(G.result) : null,
@@ -190,7 +189,7 @@ export function smartAction(G, pid) {
   const avgTreasure = G.deck.filter(x => cardOf(x).kind === "treasure").reduce((s, x) => s + cardOf(x).value, 0) / deck;
   const gain = avgTreasure / here;
   const onPath = G.path.reduce((s, x) => s + x.left, 0), arts = G.path.filter(s => cardOf(s.id).kind === "artifact").length;
-  const atStake = G.pl[pid].carry + onPath / Math.max(1, here) + arts * 3;
+  const atStake = onPath / Math.max(1, here) + arts * 3;
   const go = gain * (1 - risk) > risk * atStake + (G.round === ROUNDS ? 0 : 0.5);
   return { type: "choose", go };
 }

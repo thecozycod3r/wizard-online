@@ -16,8 +16,8 @@ SH = "/private/tmp/claude-501/-Users-dhruvshricharan/0bd99fd1-7258-490a-8f79-364
 # What a player would do now, from what their own screen knows. Shared tests read this too.
 PLAN = """() => {
   const { S } = window.__inc, v = S.view; if (!v || !S.me || !v.waiting.includes(S.me)) return null;
-  const P = v.players[v.me], warn = Object.values(v.seen).filter(Boolean).length;
-  return { type: 'choose', go: P.carry < 5 || Math.random() < .85 - .13 * warn };
+  const here = v.players.filter(p => p.inside).length, share = v.path.reduce((s, x) => s + x.left, 0) / Math.max(1, here), warn = Object.values(v.seen).filter(Boolean).length;
+  return { type: 'choose', go: share < 5 || Math.random() < .85 - .13 * warn };
 }"""
 
 
