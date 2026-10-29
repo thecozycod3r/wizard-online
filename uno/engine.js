@@ -217,7 +217,6 @@ export function act(G, pid, a) {
   if (a.type === "draw") return doDraw(G, pid);
   if (a.type === "pass") {
     if (G.drawn == null) throw new Error("Draw first.");
-    if (G.variant === "mercy") throw new Error("You have to play the card you drew.");
     G.seq++; G.last = { kind: "pass", pid };
     endTurn(G); return G;
   }
@@ -238,22 +237,11 @@ function doDraw(G, pid) {
     endTurn(G); return G;
   }
   if (G.drawn != null) throw new Error("You've already drawn.");
-  if (G.variant === "flip") {
-    const [c] = give(G, pid, 1, ev);
-    G.last = ev;
-    if (c !== undefined && canPlay(G, pid, c)) { G.drawn = c; ev.playable = true; return G; }
-    endTurn(G); return G;
-  }
-  // No Mercy: only with nothing to play; draw until something fits, then it must be played
-  if (playable(G, pid).length) throw new Error("You have a card you can play.");
-  for (let guard = 0; guard < 300; guard++) {
-    const [c] = give(G, pid, 1, ev);
-    if (c === undefined || G.out.includes(pid)) break;
-    G.drawn = c;
-    if (canPlay(G, pid, c)) { ev.playable = true; G.last = ev; return G; }
-    G.drawn = null;
-  }
+  // No Mercy: only with nothing to play. Both variants draw one card; if it fits, play it or pass
+  if (G.variant === "mercy" && playable(G, pid).length) throw new Error("You have a card you can play.");
+  const [c] = give(G, pid, 1, ev);
   G.last = ev;
+  if (c !== undefined && !G.out.includes(pid) && canPlay(G, pid, c)) { G.drawn = c; ev.playable = true; return G; }
   endTurn(G); return G;
 }
 

@@ -56,7 +56,7 @@ export function cardSvg(f, opts = {}) {
 
 // No Mercy card back (Codex painting) or a plain back for anything else
 export const backHtml = (variant, extra = "") =>
-  variant === "mercy" ? `<div class="card back ${extra}"><img src="../uno/art/mercy-back.webp?v=1" srcset="../uno/art/mercy-back@2x.webp?v=1 2x" alt="" draggable="false"></div>`
+  variant === "mercy" ? `<div class="card back ${extra}"><img src="../uno/art/mercy-back.webp?v=2" srcset="../uno/art/mercy-back@2x.webp?v=2 2x" alt="" draggable="false"></div>`
     : `<div class="card back plain ${extra}"></div>`;
 
 export const cardHtml = (id, f, extra = "", attrs = "") => `<div class="card ${extra}" data-id="${id ?? ""}" ${attrs}>${cardSvg(f)}</div>`;

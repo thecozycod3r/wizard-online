@@ -20,7 +20,7 @@ body.mercy .panel{background:rgba(36,10,10,.75)}
 /* the painting behind everything; swaps when the deck flips */
 body::before{content:"";position:fixed;inset:-40px;z-index:-1;pointer-events:none;background:var(--bgimg) center/cover no-repeat;filter:blur(18px) saturate(1.2) brightness(.42);transition:filter .8s;animation:drift 22s ease-in-out infinite alternate}
 body.darkside::before{background-image:url("/uno/art/flip-dark@2x.webp?v=1")}
-body.mercy::before{background-image:url("/uno/art/mercy-back@2x.webp?v=1");filter:blur(16px) brightness(.32)}
+body.mercy::before{background-image:url("/uno/art/mercy-back@2x.webp?v=2");filter:blur(16px) brightness(.32)}
 body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(120% 90% at 50% 35%,transparent,rgba(0,0,0,.7) 80%)}
 @keyframes drift{to{transform:scale(1.1) rotate(2deg)}}
 
@@ -70,7 +70,7 @@ body.mercy .opp{background:rgba(36,10,10,.7)}
 .opp .mini{position:absolute;left:50%;bottom:0;width:22px;height:33px;margin-left:-11px;transform-origin:50% 120%;transform:rotate(calc(var(--j) * 9deg)) translateX(calc(var(--j) * 3px));border-radius:3px}
 .opp .mini svg{width:100%;height:100%;display:block}
 .opp .mini.pb{background:linear-gradient(135deg,#1b1b1f,#33333d);box-shadow:0 0 0 1.5px #fff inset}
-.opp .mini.mb{background:url("/uno/art/mercy-back.webp?v=1") center/cover;box-shadow:0 0 0 1px #000 inset}
+.opp .mini.mb{background:url("/uno/art/mercy-back.webp?v=2") center/cover;box-shadow:0 0 0 1px #000 inset}
 .opp .who{display:flex;align-items:center;gap:5px;max-width:100%}
 .opp .av{width:20px;height:20px;font-size:11px}
 .opp .nm{font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -164,7 +164,7 @@ body.mercy .dock{background:rgba(26,6,6,.92)}
 @keyframes wheel{from{transform:rotate(-900deg) scale(.5)}}
 .fx-banner.boom{border-color:var(--red);box-shadow:0 0 0 2px var(--red),0 0 80px rgba(229,50,45,.55),0 30px 80px rgba(0,0,0,.75)}
 .fx-welcome{background:radial-gradient(ellipse at 50% 40%,rgba(40,20,80,.85),rgba(6,4,14,.97) 70%),var(--bgimg) center/cover}
-body.mercy .fx-welcome{background:radial-gradient(ellipse at 50% 40%,rgba(90,10,10,.8),rgba(10,2,2,.97) 70%),url("/uno/art/mercy-back@2x.webp?v=1") center/cover}
+body.mercy .fx-welcome{background:radial-gradient(ellipse at 50% 40%,rgba(90,10,10,.8),rgba(10,2,2,.97) 70%),url("/uno/art/mercy-back@2x.webp?v=2") center/cover}
 .fx-welcome .wl-fan .c svg{width:100%;height:auto;display:block}
 #app.shake>*{animation:shake .5s}
 

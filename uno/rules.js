@@ -30,7 +30,7 @@ export const MERCY = {
     <p>UNO with no mercy. Get rid of all your cards — or knock everyone else out. Match the top card by <b>colour, number or symbol</b>.</p>
     <h3>Your turn</h3>
     <ol><li>Tap a glowing card to play it.</li>
-    <li>Nothing fits? Tap <b>Draw till it fits</b>: you keep drawing until you get a card you can play, then you <b>must</b> play it.</li></ol>
+    <li>Nothing fits? Tap <b>Draw</b> to take one card. If it fits you can play it, or pass; otherwise your turn ends.</li></ol>
     <h3>Stacking</h3><p>Hit with a Draw card (+2, +4, +6, +10)? Play any Draw card worth the <b>same or more</b>, any colour, and the total passes on. Whoever can't stack takes it all and loses their turn.</p>
     <h3>Mercy</h3><p>Reach <b>25 cards</b> and you're out of the game.</p>
     ${uno}

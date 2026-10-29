@@ -111,7 +111,7 @@ initAgain(room, `${variant === "flip" ? "unoflip" : "nomercy"}`);
     }
     if (last.drew) {
       let k = 0;
-      for (const [pid, n] of Object.entries(last.drew)) for (let i = 0; i < Math.min(n, 8); i++, k++) fly(`<div class="back ${variant === "mercy" ? "" : "plain"}">${variant === "mercy" ? `<img src="../uno/art/mercy-back.webp?v=1" alt="">` : ""}</div>`, drawp, chipOf(pid), { size: 44, delay: 380 + k * 70, rot: (Math.random() - .5) * 30 });
+      for (const [pid, n] of Object.entries(last.drew)) for (let i = 0; i < Math.min(n, 8); i++, k++) fly(`<div class="back ${variant === "mercy" ? "" : "plain"}">${variant === "mercy" ? `<img src="../uno/art/mercy-back.webp?v=2" alt="">` : ""}</div>`, drawp, chipOf(pid), { size: 44, delay: 380 + k * 70, rot: (Math.random() - .5) * 30 });
     }
     flash(`.opp[data-pid="${v.turn}"]`, "nudge", 500);
   }
@@ -336,11 +336,11 @@ initAgain(room, `${variant === "flip" ? "unoflip" : "nomercy"}`);
     if (v.phase === "play") {
       if (mine) {
         if (v.pend) status = v.pend.color ? `Wild Draw Color on you — stack one, or draw until ${cname(v.pend.color)}` : `+${v.pend.n} coming your way — ${variant === "mercy" ? "stack a Draw card worth the same or more" : "stack the same card"}, or take it`;
-        else if (v.drawn != null) status = variant === "mercy" ? "You drew a card that fits — play it" : "You drew a playable card — play it or pass";
+        else if (v.drawn != null) status = "You drew a playable card — play it or pass";
         else status = v.hand.some(c => c.ok) ? `Your turn · play on ${cname(v.color)} or match the card` : "Nothing fits — draw";
         if (v.pend) actions += `<button class="btn take" data-act="draw">${v.pend.color ? "Draw until colour" : `Take +${v.pend.n}`}</button>`;
-        else if (v.drawn != null && variant === "flip") actions += `<button class="btn ghost" data-act="pass">Pass</button>`;
-        else if (canDraw(v)) actions += `<button class="btn ghost" data-act="draw">${variant === "mercy" ? "Draw till it fits" : "Draw"}</button>`;
+        else if (v.drawn != null) actions += `<button class="btn ghost" data-act="pass">Pass</button>`;
+        else if (canDraw(v)) actions += `<button class="btn ghost" data-act="draw">Draw</button>`;
         if (v.hand.length === 2 && v.hand.some(c => c.ok)) actions += `<button class="btn unobtn ${ui.uno ? "on" : ""}" data-act="unoarm" aria-pressed="${ui.uno}">${ui.uno ? "UNO ✓" : "UNO!"}</button>`;
       } else status = `${esc(nameOf(v.turn))}'s turn${v.pend ? ` · facing ${v.pend.color ? "Draw Color" : "+" + v.pend.n}` : ""}`;
     } else if (v.phase === "color") status = mine ? "The flip turned up a Wild — pick the colour" : `${esc(nameOf(v.turn))} is picking a colour`;
@@ -481,7 +481,7 @@ initAgain(room, `${variant === "flip" ? "unoflip" : "nomercy"}`);
   async function wake() { try { await navigator.wakeLock?.request("screen"); } catch { /* not allowed */ } }
   document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && S.mode === "game" && wake());
   addEventListener("resize", () => S.mode === "game" && render());
-  if (variant === "mercy") preload(["../uno/art/mercy-back.webp?v=1", "../uno/art/mercy-back@2x.webp?v=1"]);
+  if (variant === "mercy") preload(["../uno/art/mercy-back.webp?v=2", "../uno/art/mercy-back@2x.webp?v=2"]);
 
   (function boot() {
     if (S.code) { const n = room.savedName(); if (n) { wake(); return room.join(n); } S.mode = "join"; }
