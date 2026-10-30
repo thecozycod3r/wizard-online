@@ -463,7 +463,7 @@ function build(G, pid, a, ev) {
   const count = kind === "trail" ? G.trails.filter(t => t.pid === pid).length : kind === "ship" ? G.ships.filter(s => s.pid === pid).length : mine(G, pid).length;
   if (LIMIT[kind] && count >= LIMIT[kind]) err(`You have no ${kind}s left.`);
   if (kind === "trail") {
-    if (!legal(G, pid, "trail").some(o => o.k === linkKey(a.a, a.b))) err("Trails must join your network.");
+    if (typeof a.a !== "string" || typeof a.b !== "string" || !legal(G, pid, "trail").some(o => o.k === linkKey(a.a, a.b))) err("Trails must join your network.");
     pay(h, c); G.trails.push({ pid, a: a.a, b: a.b, k: linkKey(a.a, a.b) }); ev.a = a.a; ev.b = a.b;
     return;
   }
