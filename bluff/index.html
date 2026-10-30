@@ -57,13 +57,17 @@
 .rk{all:unset;cursor:pointer;text-align:center;font-family:var(--display);font-weight:900;font-size:17px;padding:8px 0;border-radius:9px;background:rgba(255,255,255,.07);border:1px solid var(--line)}
 .rk.on{background:var(--gold);color:#2a1604;border-color:var(--gold)}
 @media (max-width:520px){ .ranks{grid-template-columns:repeat(7,minmax(0,1fr))} }
-.hand{display:flex;gap:4px;overflow-x:auto;padding:12px 4px 4px;--cw:clamp(46px,13vw,62px);scrollbar-width:none}
+.hand{display:flex;flex-direction:column;gap:0;padding:12px 4px 4px;--cw:clamp(46px,13vw,62px)}
+.hrow{display:flex;justify-content:center;min-width:0}
+.hrow .hc+.hc{margin-left:min(4px,calc((100% - var(--n) * var(--cw)) / (var(--n) - 1)))}
+.hrow+.hrow{margin-top:calc(var(--cw) * -1)}
+
 .hc{all:unset;cursor:pointer;flex:none;border-radius:9px;transition:transform .15s}
 .hc[disabled]{cursor:default}
 .hc.on{transform:translateY(-10px)} .hc.on .pcard{box-shadow:0 0 0 3px var(--gold),0 0 16px rgba(227,176,75,.6);border-radius:8px}
 .hand.pickable .hc.match .pcard{box-shadow:0 0 0 2px rgba(47,182,163,.8);border-radius:8px}
 .hand.pickable .hc.on.match .pcard{box-shadow:0 0 0 3px var(--gold),0 0 16px rgba(227,176,75,.6)}
-.hist{display:flex;flex-direction:column;gap:8px} .hist .h{background:var(--bg2);border-radius:12px;padding:8px 12px;display:flex;align-items:center;gap:10px} .hist .pl{width:18px;color:var(--gold-2)}
+.hist{display:flex;flex-direction:column;gap:8px} .hist .h{background:var(--bg2);border-radius:12px;padding:8px 12px;display:flex;flex-direction:row;align-items:center;gap:10px} .hist .pl{width:18px;color:var(--gold-2)}
 .fan .c .pcard,.fx-welcome .wl-fan .c .pcard,.fx-welcome .wl-fan>.pcard{--cw:100%}
 .pcard.back{background:linear-gradient(135deg,#3a1846,#140a1c)}
 @media (prefers-reduced-motion:reduce){ .hc{transition:none} }

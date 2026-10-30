@@ -42,14 +42,14 @@ function game(ctx) {
     const put = v.plays.filter(x => x.pid === p.id).reduce((s, x) => s + x.count, 0), last = v.lastBy === p.id;
     return `<div class="chip ${v.waiting.includes(p.id) ? "turn" : ""} ${p.id === S.me ? "me" : ""} ${last ? "lastby" : ""}" data-pid="${p.id}">${p.id === lead ? ctx.CROWN : ""}
       <span class="av" style="background:${ctx.SEAT[i]}">${esc(p.name[0]?.toUpperCase())}</span>
-      <span class="nm">${esc(p.name)}${p.id === S.me ? " <span class='muted'>(you)</span>" : ""}<span class="sub">${put ? `${put} down this round` : p.caught ? `caught ${p.caught}×` : "&nbsp;"}</span></span>
+      <span class="nm">${esc(p.name)}${p.id === S.me ? " <span class='muted'>(you)</span>" : ""}<span class="sub">${put ? `${put} down` : p.caught ? `caught ${p.caught}×` : "&nbsp;"}</span></span>
       <span class="val" title="Cards in hand">🂠 ${p.cards}</span>${S.bots?.includes(p.id) ? `<span class="badge bot">BOT</span>` : ""}<span class="tmr" data-tmr="${p.id}"></span></div>`;
   }).join("");
   const claimed = v.plays.reduce((s, x) => s + x.count, 0), cap = 4 * v.decks;
   const pile = v.phase === "gameOver" ? `<div class="table-mid"><div class="claim"><small>GAME OVER</small><b>${esc(ctx.nameOf(v.result.winners[0]))} ${v.result.winners[0] === S.me ? "win" : "wins"}!</b><span class="cap">out of cards first</span></div></div>` : `<div class="table-mid">
-      <div class="claim">${v.rank === null ? `<small>NEW ROUND</small><b>${esc(ctx.nameOf(v.turn))} names the rank</b>` : `<small>CLAIMING</small><b>${plural(v.rank)}</b><span class="cap ${claimed > cap ? "over" : ""}">${claimed} of ${cap} claimed</span>`}</div>
+      <div class="claim">${v.rank === null ? `<small>NEW ROUND</small><b>${v.turn === S.me ? "You name" : `${esc(ctx.nameOf(v.turn))} names`} the rank</b>` : `<small>CLAIMING</small><b>${plural(v.rank)}</b><span class="cap ${claimed > cap ? "over" : ""}">${claimed} of ${cap} claimed</span>`}</div>
       <div class="pile" id="pile">${v.pileCount ? Array.from({ length: Math.min(v.pileCount, 14) }, (_, i) => back("", `style="--i:${i};--rot:${((i * 37) % 23) - 11}deg"`)).join("") : `<span class="muted">Pile is empty</span>`}</div>
-      <div class="pilecount">${v.pileCount} card${v.pileCount === 1 ? "" : "s"} in the pile${v.cleared ? ` · ${v.cleared} cleared away` : ""}</div>
+      ${v.pileCount || v.cleared ? `<div class="pilecount">${v.pileCount ? `${v.pileCount} card${v.pileCount === 1 ? "" : "s"} in the pile` : ""}${v.pileCount && v.cleared ? " · " : ""}${v.cleared ? `${v.cleared} cleared away so far` : ""}</div>` : ""}
       ${v.plays.length ? `<div class="trail">${v.plays.map(x => `<span>${esc(ctx.nameOf(x.pid))} <b>${x.count}</b></span>`).join("<i>→</i>")}</div>` : ""}
     </div>`;
   return `<div id="table">${ctx.topBar(`<span class="rnd"><small>DECKS</small>${v.decks}</span>`)}
@@ -73,7 +73,11 @@ function dock(v, ctx) {
       <button class="btn ghost" data-act="pass">Pass</button>`;
   }
   const hand = v.hand.slice().sort((a, b) => rankOf(a) - rankOf(b) || (a < b ? -1 : 1));
-  const handHtml = `<div class="hand ${mine ? "pickable" : ""}">${hand.map(c => `<button class="hc ${pick.sel.includes(c) ? "on" : ""} ${v.rank && rankOf(c) === v.rank ? "match" : ""}" data-act="card" data-card="${c}" ${mine ? "" : "disabled"}>${face(c)}</button>`).join("")}</div>`;
+  // the whole hand always fits: at most 10 cards a row, overlapping sideways, and the rows overlap so each card shows its corner
+  const per = Math.ceil(hand.length / Math.max(1, Math.ceil(hand.length / 10)));
+  const rows = Array.from({ length: Math.ceil(hand.length / per) }, (_, i) => hand.slice(i * per, (i + 1) * per));
+  const cardBtn = c => `<button class="hc ${pick.sel.includes(c) ? "on" : ""} ${v.rank && rankOf(c) === v.rank ? "match" : ""}" data-act="card" data-card="${c}" ${mine ? "" : "disabled"}>${face(c)}</button>`;
+  const handHtml = `<div class="hand ${mine ? "pickable" : ""}">${rows.map(r => `<div class="hrow" style="--n:${r.length}">${r.map(cardBtn).join("")}</div>`).join("")}</div>`;
   return `<div class="dock ${mine ? "mine" : ""}"><div class="dockhead"><span class="status ${mine ? "you" : ""}">${status}${timer}</span><span class="muted handn">${v.hand.length} in hand${n ? ` · ${n} picked` : ""}</span></div>${actions ? `<div class="actions">${actions}</div>` : ""}${handHtml}</div>`;
 }
 function onAct(a, el, ctx) {
@@ -117,7 +121,7 @@ function scores(ctx) {
 }
 function podium(ctx) {
   const v = ctx.V(), r = v.result;
-  return `<p style="margin-top:0">🏆 <b>${esc(ctx.nameOf(r.winners[0]))}</b> emptied their hand first.</p>
+  return `<p style="margin-top:0">🏆 <b>${esc(ctx.nameOf(r.winners[0]))}</b> emptied ${r.winners[0] === ctx.S.me ? "your" : "their"} hand first.</p>
     <div class="hist">${r.rows.map((row, i) => `<div class="h"><b class="pl">${i + 1}</b><span class="av" style="background:${ctx.SEAT[v.players.findIndex(p => p.id === row.pid)]}">${esc(ctx.plainName(row.pid)[0])}</span><b style="flex:1">${esc(ctx.nameOf(row.pid))}</b><b style="font-size:18px">${row.points} 🂠</b></div>`).join("")}</div>`;
 }
 window.__bluffT = T;
