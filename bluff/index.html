@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0d1418">
+<title>Bluff · Table Night</title>
+<meta name="description" content="Bluff for 3–12 players on your phones. Start a table, share the link, lie with a straight face.">
+<meta property="og:title" content="Bluff — join my game">
+<meta property="og:description" content="Tap the link, enter your name — and keep a straight face.">
+<meta property="og:image" content="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="../shared/kit.css?v=1">
+<style>
+/* Layout: the claimed rank and the face-down pile in the middle, players with their card counts, your hand and choices in the dock. */
+:root{--bg:#0b1214;--bg2:#1c1626;--panel:rgba(30,22,40,.84);--line:rgba(255,255,255,.13);--ink:#f7f0e4;--dim:#c4b9a8;--gold:#e3b04b;--gold-2:#f6d58a;
+  --display:"Playfair Display",Georgia,serif;--body:"Bricolage Grotesque",system-ui,sans-serif;--num:"Bricolage Grotesque",system-ui,sans-serif;color-scheme:dark;
+  --bgimg:url("/bluff/art/bluff-hero@2x.webp?v=1");--dockbg:rgba(14,10,20,.94)}
+.title{font-weight:900;letter-spacing:-.01em}
+.btn{background:linear-gradient(180deg,#f6d58a,#c98e2c);color:#2a1604}
+.btn.bluff{background:linear-gradient(180deg,#ff6a7f,#c21d4a);color:#fff;font-size:18px;letter-spacing:.02em;box-shadow:0 4px 0 #7a0f2c,0 0 22px rgba(255,61,110,.35)}
+.panel{background:rgba(28,20,38,.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sheet{background:var(--bg2)} .toast{background:var(--bg2)}
+.deal{margin:8px 0 0;font-size:14px;color:var(--dim)} .deal b{color:var(--gold-2)}
+.fx-banner{background:rgba(14,10,20,.94);border-color:rgba(227,176,75,.35)}
+.fx-banner .t{font-family:var(--display);font-weight:900}
+.fx-banner .t.sm{font-size:20px;margin-top:2px}
+.fx-banner.good{border-color:#2fb6a3;box-shadow:0 0 50px rgba(47,182,163,.45),0 30px 80px rgba(0,0,0,.7)}
+.fx-banner.bad{border-color:#ff4d6e;box-shadow:0 0 50px rgba(255,77,110,.45),0 30px 80px rgba(0,0,0,.7)}
+.reveal{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;--cw:clamp(52px,15vw,74px);margin-bottom:6px}
+.reveal .pcard{border-radius:8px}
+.reveal .pcard.lie{box-shadow:0 0 0 3px #ff4d6e,0 0 22px rgba(255,77,110,.7)}
+.reveal .pcard.true{box-shadow:0 0 0 3px #2fb6a3,0 0 18px rgba(47,182,163,.6)}
+/* middle of the table */
+.table-mid{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px 14px}
+.claim{display:flex;flex-direction:column;align-items:center;text-align:center}
+.claim small{font-weight:800;font-size:11px;letter-spacing:.22em;color:var(--dim)}
+.claim b{font-family:var(--display);font-weight:900;font-size:clamp(28px,8vw,40px);line-height:1.05;color:var(--gold-2);text-shadow:0 2px 14px rgba(0,0,0,.6)}
+.claim .cap{font-size:12px;font-weight:700;color:var(--dim);margin-top:2px} .claim .cap.over{color:#ff8fa3}
+.pile{position:relative;width:min(56vw,230px);height:clamp(100px,30vw,140px);display:grid;place-items:center;--cw:clamp(58px,17vw,80px)}
+.pile .pcard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) translate(calc(var(--i) * 1.5px),calc(var(--i) * -1.2px)) rotate(var(--rot))}
+.pilecount{font-weight:700;font-size:13px;color:var(--dim)}
+.trail{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 6px;font-size:13px;color:var(--dim);max-width:520px}
+.trail span{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 9px} .trail b{color:var(--ink)} .trail i{font-style:normal;opacity:.5}
+.chips{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.chip.lastby{border-color:#b34a8c}
+/* the dock: rank picker, buttons, hand */
+.handn{margin-left:auto;font-size:12px;font-weight:700}
+.actions{align-items:center}
+.actions .btn{flex:1 1 auto;min-height:48px}
+.ranks{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:4px;width:100%}
+.rk{all:unset;cursor:pointer;text-align:center;font-family:var(--display);font-weight:900;font-size:17px;padding:8px 0;border-radius:9px;background:rgba(255,255,255,.07);border:1px solid var(--line)}
+.rk.on{background:var(--gold);color:#2a1604;border-color:var(--gold)}
+@media (max-width:520px){ .ranks{grid-template-columns:repeat(7,minmax(0,1fr))} }
+.hand{display:flex;gap:4px;overflow-x:auto;padding:12px 4px 4px;--cw:clamp(46px,13vw,62px);scrollbar-width:none}
+.hc{all:unset;cursor:pointer;flex:none;border-radius:9px;transition:transform .15s}
+.hc[disabled]{cursor:default}
+.hc.on{transform:translateY(-10px)} .hc.on .pcard{box-shadow:0 0 0 3px var(--gold),0 0 16px rgba(227,176,75,.6);border-radius:8px}
+.hand.pickable .hc.match .pcard{box-shadow:0 0 0 2px rgba(47,182,163,.8);border-radius:8px}
+.hand.pickable .hc.on.match .pcard{box-shadow:0 0 0 3px var(--gold),0 0 16px rgba(227,176,75,.6)}
+.hist{display:flex;flex-direction:column;gap:8px} .hist .h{background:var(--bg2);border-radius:12px;padding:8px 12px;display:flex;align-items:center;gap:10px} .hist .pl{width:18px;color:var(--gold-2)}
+.fan .c .pcard,.fx-welcome .wl-fan .c .pcard,.fx-welcome .wl-fan>.pcard{--cw:100%}
+.pcard.back{background:linear-gradient(135deg,#3a1846,#140a1c)}
+@media (prefers-reduced-motion:reduce){ .hc{transition:none} }
+</style>
+<script type="module">import { CSS } from "../drinks/cards.js"; const s = document.createElement("style"); s.textContent = CSS; document.head.append(s);</script>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -11,6 +11,7 @@ export const GAMES = [
   { path: "skullking", letter: "K", name: "Skull King", min: 2, max: 8, mins: 40, tags: ["cards", "tricks"] },
   { path: "nimmt", letter: "6", name: "6 Nimmt!", min: 2, max: 10, mins: 20, tags: ["cards", "party", "quick"] },
   { path: "coup", letter: "U", name: "Coup", min: 2, max: 10, mins: 15, tags: ["cards", "party", "bluff", "quick"] },
+  { path: "bluff", letter: "B", name: "Bluff", min: 3, max: 12, mins: 20, tags: ["cards", "party", "bluff"] },
   { path: "spyfall", letter: "Y", name: "Spyfall", min: 3, max: 10, mins: 15, tags: ["party", "roles", "bluff", "quick"] },
   { path: "catan", letter: "T", name: "Catan", min: 2, max: 6, mins: 60, tags: ["strategy"] },
   { path: "codenames", letter: "D", name: "Codenames", min: 4, max: 12, mins: 20, tags: ["party", "words", "teams"] },
