@@ -102,8 +102,10 @@ function armBoard(v) {
   if (v.phase === "setup") {
     const opts = E.legal(G, me, "setup");
     if (!mode || mode.kind !== "setup") mode = { kind: "setup" };
-    if (!mode.v) return world.arm({ kind: "corner", targets: [...new Set(opts.map(o => o.v))].map(c => ({ v: c })), onPick: t => { mode.v = t.v; T.render(); } });
-    return world.arm({ kind: "link", targets: opts.filter(o => o.v === mode.v), onPick: t => { const c = mode.v; mode = null; T.room.act({ type: "place", v: c, a: t.a, b: t.b }); } });
+    // picks hold on to this setup step, so a quick second tap before the board refreshes can't land on a cleared mode
+    const m = mode;
+    if (!m.v) return world.arm({ kind: "corner", targets: [...new Set(opts.map(o => o.v))].map(c => ({ v: c })), onPick: t => { if (mode !== m) return; m.v = t.v; T.render(); } });
+    return world.arm({ kind: "link", targets: opts.filter(o => o.v === m.v), onPick: t => { if (mode !== m) return; mode = null; world.arm(null); T.room.act({ type: "place", v: m.v, a: t.a, b: t.b }); } });
   }
   if (!mode) return world.arm(null);
   if (mode.kind === "build") {
