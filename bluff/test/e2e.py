@@ -4,7 +4,7 @@
 """
 from pathlib import Path
 
-HOOK, MAX = "__bluff", 12
+HOOK, MAX = "__bluff", 8
 # What a player would do now, from what their own screen knows: mostly honest, a bluff now and then, calls sometimes.
 PLAN = """() => {
   const c = window.__bluff, v = c.V(); if (!v || !c.S.me || !v.waiting.includes(c.S.me)) return null;

@@ -21,7 +21,7 @@ const T = startTable({
   preload: [`art/bluff-hero@2x.webp${V_ART}`, `art/bluff-back@2x.webp${V_ART}`, `art/bluff-back.webp${V_ART}`],
   lobby: (L, host, ctx) => {
     const n = Math.max(L.players.length, 1), d = E.decksFor(L.settings, n), { base: each, extra } = E.dealSizes(d, n);
-    return `<div class="row" style="justify-content:space-between"><span>Decks</span>${ctx.seg("decks", [[0, "Auto"], [1, "1"], [2, "2"], [3, "3"]], L.settings.decks || 0, host)}</div>
+    return `<div class="row" style="justify-content:space-between"><span>Decks</span>${ctx.seg("decks", [[0, "Auto"], [1, "1"], [2, "2"], [3, "3"], [4, "4"]], L.settings.decks || 0, host)}</div>
       <p class="deal">${d} deck${d > 1 ? "s" : ""} · ${52 * d} cards · <b>${each} card${each === 1 ? "" : "s"} each</b>${extra ? ` (${extra} player${extra > 1 ? "s" : ""} get${extra > 1 ? "" : "s"} ${each + 1})` : ""} with ${n} player${n > 1 ? "s" : ""}</p>`;
   },
   game, scores, podium, effect, onAct,

@@ -4,6 +4,6 @@
 import sys
 from pathlib import Path
 
-HOOK, MAX = "__bluff", 12
+HOOK, MAX = "__bluff", 8
 sys.argv[0] = __file__
 exec(open(Path(__file__).resolve().parents[2] / "shared/test/kit_failover.py").read())

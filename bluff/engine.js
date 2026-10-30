@@ -6,7 +6,7 @@
 // Actions: {type:"play", cards:[ids], rank?} (rank only when starting a round) · {type:"pass"} · {type:"call"}
 import { fullDeck, rankOf } from "../drinks/cards.js";
 
-export const MIN_PLAYERS = 3, MAX_PLAYERS = 12, MAX_PLAY = 4, MAX_DECKS = 3;
+export const MIN_PLAYERS = 3, MAX_PLAYERS = 8, MAX_PLAY = 4, MAX_DECKS = 4;
 export const RANKS = Array.from({ length: 13 }, (_, i) => i + 1);
 // how many decks a table uses: the host's pick, or 1 up to six players and 2 beyond
 export const decksFor = (settings = {}, n = 4) => (settings.decks >= 1 && settings.decks <= MAX_DECKS ? +settings.decks : n <= 6 ? 1 : 2);

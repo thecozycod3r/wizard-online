@@ -2,7 +2,7 @@
 import * as E from "../engine.js";
 const N = +(process.argv[2] || 200);
 let games = 0, turns = 0, maxT = 0, bad = 0;
-for (let n = E.MIN_PLAYERS; n <= E.MAX_PLAYERS; n++) for (const decks of [0, 1, 2, 3]) for (let g = 0; g < N / 40; g++) {
+for (let n = E.MIN_PLAYERS; n <= E.MAX_PLAYERS; n++) for (const decks of [0, 1, 2, 3, 4]) for (let g = 0; g < N / 40; g++) {
   const G = E.newGame(Array.from({ length: n }, (_, i) => ({ id: "p" + i, name: "P" + i })), { decks });
   const total = 52 * G.decks;
   let t = 0;
