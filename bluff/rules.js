@@ -16,7 +16,7 @@ export const RULES = (s = {}, n = 4) => {
     <h3>Winning</h3><p>Play your last cards and survive: once the next player plays or passes instead of calling, you're out and you win. If they call and you lied, you pick up the pile and play on. Everyone else is ranked by the cards left in hand.</p>`,
     cards: `<h3>Ranks</h3><p>Ace, 2–10, Jack, Queen, King. Suits don't matter. With ${d === 1 ? "one deck there are 4" : `${d} decks there are ${4 * d}`} of each rank, so if more than that have been claimed this round, someone is lying.</p>
     <h3>Reading the table</h3><p>You always see how many cards each player holds, how big the pile is, the rank being claimed and how many cards each player has put down this round.</p>`,
-    full: `<h3>Only the next player can call</h3><p>Bluff is called on your own turn, on the play just before yours.</p>
+    full: `<h3>Only the next player can call</h3><p>Bluff is called on your own turn, on the play just before yours. Once someone has passed on a play, it stands and can no longer be called.</p>
     <h3>Turn timer</h3><p>If time runs out, the game plays for you honestly: it starts with your biggest set, follows with matching cards if you have them, and otherwise passes. It never calls Bluff for you.</p>
     <h3>Leaving</h3><p>If someone leaves mid-game, a bot takes their seat. It calls when a claim can't add up or someone is about to go out, and bluffs now and then.</p>`,
   };

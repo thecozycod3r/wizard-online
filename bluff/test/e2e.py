@@ -14,7 +14,7 @@ PLAN = """() => {
     const rank = +Object.entries(cnt).sort((a, b) => b[1] - a[1])[0][0], cards = h.filter(x => r(x) === rank).slice(0, 4);
     return { a: { type: 'play', rank, cards }, taps: [`[data-act="rank"][data-r="${rank}"]`, ...sel(cards), '[data-act="play"]'] };
   }
-  if (Math.random() < .25) return { a: { type: 'call' }, taps: ['[data-act="call"]'] };
+  if (v.canCall && Math.random() < .25) return { a: { type: 'call' }, taps: ['[data-act="call"]'] };
   let cards = h.filter(x => r(x) === v.rank).slice(0, 4);
   if (!cards.length && Math.random() < .4) cards = [h[0]];
   if (!cards.length) return { a: { type: 'pass' }, taps: ['[data-act="pass"]'] };

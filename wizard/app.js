@@ -366,7 +366,9 @@ const TRACK_TITLE = {
 // a spare trick lands on someone who's already made their bid.
 function pressure(v) {
   if (!LIVE.has(v.phase) || v.phase === "roundEnd" || v.players.some(p => p.bid == null)) return "";
-  const left = v.round - v.trickNo + (["juggler", "cloud", "witch"].includes(v.phase) ? 0 : 1);
+  // the trick on the table counts as still to win until it is resolved, unless a Bomb means nobody wins it
+  const settled = ["juggler", "cloud", "witch"].includes(v.phase) || (v.phase === "trickShow" && v.trickResult?.bombed);
+  const left = v.round - v.trickNo + (settled ? 0 : 1);
   const want = v.players.reduce((s, p) => s + Math.max(0, p.bid - p.won), 0);
   const [cls, msg] = want > left ? ["under", "Someone's going under"] : want < left ? ["over", "Someone's going over"] : ["even", "Every trick is spoken for"];
   return `<div class="pressure ${cls}"><span>${want} wanted · ${left} trick${left === 1 ? "" : "s"} left</span><b>${msg}</b></div>`;

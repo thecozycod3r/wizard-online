@@ -67,8 +67,8 @@ function dock(v, ctx) {
       <button class="btn" data-act="play" ${r && n ? "" : "disabled"}>Play ${n || ""} as ${r ? plural(r) : "…"}</button>`;
   } else {
     const lp = v.plays.at(-1);
-    status = `${esc(ctx.nameOf(lp.pid))} put down ${lp.count} “${plural(v.rank)}”`;
-    actions = `<button class="btn bluff" data-act="call">Bluff!</button>
+    status = v.canCall ? `${esc(ctx.nameOf(lp.pid))} put down ${lp.count} “${plural(v.rank)}”` : `${esc(ctx.nameOf(lp.pid))}'s ${lp.count} “${plural(v.rank)}” stood — play or pass`;
+    actions = `${v.canCall ? `<button class="btn bluff" data-act="call">Bluff!</button>` : ""}
       <button class="btn" data-act="play" ${n ? "" : "disabled"}>Play ${n || ""} as ${plural(v.rank)}</button>
       <button class="btn ghost" data-act="pass">Pass</button>`;
   }

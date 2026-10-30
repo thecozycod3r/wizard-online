@@ -76,6 +76,7 @@ export function act(G, pid, a) {
     }
   } else if (a.type === "call") {
     if (!lastPlay) err("Nothing to call yet.");
+    if (G.passes) err("Only the player right after a play can call it.");
     const liar = lastPlay.pid, shown = lastPlay.cards.slice(), lie = shown.some(c => rankOf(c) !== G.rank);
     const taker = lie ? liar : pid, count = G.pile.length;
     G.hands[taker].push(...G.pile); G.pile = [];
@@ -101,7 +102,7 @@ export function viewFor(G, pid) {
   const lp = G.plays.at(-1);
   return {
     game: "bluff", gameId: G.gameId, seq: G.seq, phase: G.phase, decks: G.decks, me: idxOf(G, pid),
-    waiting: waitingOn(G), turn: cur(G), rank: G.rank, pileCount: G.pile.length, cleared: G.cleared, passes: G.passes,
+    settings: { decks: G.decks }, waiting: waitingOn(G), turn: cur(G), rank: G.rank, canCall: !!lp && !G.passes, pileCount: G.pile.length, cleared: G.cleared, passes: G.passes,
     plays: G.plays.map(p => ({ pid: p.pid, count: p.cards.length })), lastBy: lp ? lp.pid : null,
     hand: (G.hands[pid] || []).slice(),
     players: G.players.map(p => ({ id: p.id, name: p.name, cards: G.hands[p.id].length, ...G.called[p.id] })),
@@ -124,7 +125,7 @@ const bestRank = h => { const n = {}; for (const c of h) n[rankOf(c)] = (n[rankO
 export function botAction(G, pid) {
   if (!waitingOn(G).includes(pid)) return null;
   const h = G.hands[pid], lp = G.plays.at(-1);
-  if (lp) {
+  if (lp && !G.passes) {
     const mine = h.filter(c => rankOf(c) === G.rank).length;
     const claimed = G.plays.reduce((s, p) => s + p.cards.length, 0);
     const impossible = claimed + mine > 4 * G.decks;
