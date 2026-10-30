@@ -6,7 +6,7 @@ import { alerts, soundRow, inAppHint } from "../shared/alert.js";
 import { hscroll } from "../shared/hscroll.js";
 import { SPECIAL_CARDS } from "./specials.js";
 import { RULES_HTML } from "./rules-content.js";
-import { playFx, burst, welcome } from "./fx.js";
+import { playFx, burst, welcome, flyWin, result } from "./fx.js";
 
 const CROWN = `<svg class="crown" viewBox="0 0 30 22" aria-label="Leader"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1b0"/><stop offset=".55" stop-color="#f2c14e"/><stop offset="1" stop-color="#b7832a"/></linearGradient></defs><path d="M2 7l6.5 5L15 2l6.5 10L28 7l-2.6 12H4.6z" fill="url(#cg)" stroke="#7a5418" stroke-width="1.2" stroke-linejoin="round"/><rect x="4.4" y="17.6" width="21.2" height="3.4" rx="1.2" fill="url(#cg)" stroke="#7a5418" stroke-width="1"/><circle cx="15" cy="2.6" r="1.8" fill="#ff5a6e"/><circle cx="2.4" cy="7" r="1.5" fill="#7fd0ff"/><circle cx="27.6" cy="7" r="1.5" fill="#7fd0ff"/></svg>`;
 
@@ -118,9 +118,12 @@ function queueFx(prev, v) {
     const who = p.pid === S.me ? "You" : v.players.find(x => x.id === p.pid)?.name;
     if (E.SPECIALS.includes(kind) && kind !== "werewolf") q.push({ kind, id: p.id, who, extra: kind === "vampire" && p.copy ? `copies ${E.cardLabel(p.copy)}` : "" });
     else if (kind === "wizard") q.push({ burst: "wizard", id: p.id });
+    else if (kind === "jester") q.push({ burst: "jester", id: p.id });
   }
   if (fresh) return;
   if (v.phase === "trickShow" && v.trickResult?.bombed && prev.phase !== "trickShow") q.push({ burst: "boom", zone: true });
+  if (v.phase === "trickShow" && v.trickResult && !v.trickResult.bombed && prev.phase !== "trickShow") q.push({ win: v.trickResult.winnerPid });
+  if (v.phase === "roundEnd" && prev.phase !== "roundEnd" && v.scores.at(-1)?.rows?.[S.me]) q.push({ result: v.scores.at(-1).rows[S.me] });
   if (prev.phase === "juggler" && v.phase !== "juggler") q.push({ burst: "pass" });
   if (prev.phase === "cloud" && v.phase !== "cloud") q.push({ burst: "cloudBid" });
   if (prev.phase === "witch" && v.phase !== "witch") q.push({ burst: "swap", zone: true });
@@ -134,6 +137,12 @@ function runFx() {
   const q = S.fxQueue.splice(0);
   q.forEach((f, i) => setTimeout(() => {
     if (f.welcome) return welcome();
+    if (f.result) return result(f.result);
+    if (f.win) {
+      const cards = [...document.querySelectorAll("#zone .tcard")].map(el => ({ id: el.dataset.id, r: el.querySelector("img").getBoundingClientRect() }));
+      const hide = () => document.querySelectorAll("#zone .tcard").forEach(el => { el.style.visibility = "hidden"; });
+      return flyWin(cards, document.querySelector(`.opp[data-pid="${f.win}"]`)?.getBoundingClientRect(), f.win === S.me, hide);
+    }
     const at = f.id ? document.querySelector(`.tcard[data-id="${f.id}"]`) : f.zone ? document.getElementById("zone") : null;
     const rect = at?.getBoundingClientRect() || null;
     if (f.kind) playFx(f.kind, f.id, rect, f.who, f.extra);
@@ -283,10 +292,12 @@ function viewGame() {
     const i = seatOf(p.id);
     const turn = v.waiting.includes(p.id);
     const off = S.online[p.id] === false;
-    return `<div class="opp ${turn ? "turn" : ""} ${p.id === me ? "me" : ""} ${p.id === lead ? "lead" : ""}">${p.id === lead ? CROWN.replace('class="crown"', `class="crown${crownPop ? " pop" : ""}"`) : ""}
+    const tr = trackOf(v, p);
+    const think = turn && p.id !== me && v.phase !== "trickShow";
+    return `<div class="opp ${turn ? "turn" : ""} ${p.id === me ? "me" : ""} ${p.id === lead ? "lead" : ""}" data-pid="${p.id}">${p.id === lead ? CROWN.replace('class="crown"', `class="crown${crownPop ? " pop" : ""}"`) : ""}
       <div class="nm"><span class="av" style="background:${SEAT_COLORS[i]}">${esc(p.name[0]?.toUpperCase())}</span><span class="pn">${p.id === me ? "You" : esc(p.name)}</span>
         ${i === v.dealer ? `<span class="badge" title="Dealer">D</span>` : ""}${S.bots?.includes(p.id) ? `<span class="badge bot" title="Left the game: a bot is playing">BOT</span>` : off ? `<span class="badge off">OFF</span>` : ""}${turn ? `<span class="tmr" data-tmr="${p.id}"></span>` : ""}</div>
-      <div class="st"><span class="bw" title="Tricks won / bid">${p.won}<span class="muted">/${p.bid ?? "–"}</span></span><b class="sc" title="Score">${p.total}</b></div></div>`;
+      <div class="st"><span class="bw ${tr}" title="${TRACK_TITLE[tr]?.(p) || "Tricks won / bid"}">${p.won}<span class="muted">/${p.bid ?? "–"}</span>${tr === "made" ? "<i>✓</i>" : tr === "over" ? "<i>▲</i>" : ""}</span>${think ? `<span class="think" aria-label="Thinking"><i></i><i></i><i></i></span>` : ""}<b class="sc" title="Score">${p.total}</b></div></div>`;
   }).join("");
 
   const trumpChip = `<span class="rnd tr"><small>TRUMP</small><span style="color:${v.trump ? SUIT_HEX[v.trump] : "var(--ink-dim)"}">${v.trump ? E.SUIT_NAME[v.trump] : ["werewolf", "trump"].includes(v.phase) ? "…" : "None"}</span></span>`;
@@ -315,7 +326,7 @@ function viewGame() {
   const center = `<div class="center">
       <div class="trickzone ${canDrop ? "can" : ""}" id="zone">${zoneInner}</div>
       <div class="status ${v.waiting.includes(me) ? "you" : ""}">${statusText()}${v.waiting.includes(me) ? ` <span class="tmr big" data-tmr="${me}"></span>` : ""}</div>
-      ${promptHtml()}
+      ${pressure(v)}${promptHtml()}
     </div>`;
 
   // Hand
@@ -336,6 +347,29 @@ function viewGame() {
   return `<div id="table">${bar}<div class="opps">${opps}</div>${center}
     <div class="handbar">${handbar}${hostHelp}</div>
     <div class="hand ${myTurnPlay ? "myturn" : ""}" id="hand" data-n="${cards.length}">${cards.join("")}</div></div>`;
+}
+
+// Phases where every bid is in and tricks are being played out.
+const LIVE = new Set(["play", "declare", "trickShow", "juggler", "cloud", "witch", "roundEnd"]);
+// Each player's bid against tricks won so far: short of it, exactly on it, or already over.
+function trackOf(v, p) {
+  if (!LIVE.has(v.phase) || p.bid == null) return "";
+  return p.won > p.bid ? "over" : p.won === p.bid ? "made" : "short";
+}
+const TRACK_TITLE = {
+  short: p => `Needs ${p.bid - p.won} more`,
+  made: () => "On their bid",
+  over: p => `Over their bid by ${p.won - p.bid}`,
+};
+
+// Tricks still wanted against tricks still to win: more wanted than left means someone misses short, fewer means
+// a spare trick lands on someone who's already made their bid.
+function pressure(v) {
+  if (!LIVE.has(v.phase) || v.phase === "roundEnd" || v.players.some(p => p.bid == null)) return "";
+  const left = v.round - v.trickNo + (["juggler", "cloud", "witch"].includes(v.phase) ? 0 : 1);
+  const want = v.players.reduce((s, p) => s + Math.max(0, p.bid - p.won), 0);
+  const [cls, msg] = want > left ? ["under", "Someone's going under"] : want < left ? ["over", "Someone's going over"] : ["even", "Every trick is spoken for"];
+  return `<div class="pressure ${cls}"><span>${want} wanted · ${left} trick${left === 1 ? "" : "s"} left</span><b>${msg}</b></div>`;
 }
 
 function statusText() {

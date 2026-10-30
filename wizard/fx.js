@@ -117,6 +117,11 @@ const EFFECTS = {
       layer.append(o); setTimeout(() => o.remove(), 1700);
     }
   },
+  jester(r) { // a little harlequin puff; Jesters are common, so no banner
+    const c = centre(r), cols = ["#e2493f", "#eeb52b", "#4c86ee", "#2fb36a"];
+    emit(reduce ? 6 : 34, i => { const a = rand(-2.7, -0.45), s = rand(2, 6);
+      return { x: c.x, y: c.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, g: 0.16, life: rand(30, 55), size: rand(3, 6), star: true, color: cols[i % 4] }; });
+  },
   pass() { // everyone just passed a card left
     el("fx-pass", `<span>↺</span><b>Cards passed left</b>`, 1500);
   },
@@ -174,6 +179,39 @@ export function playFx(kind, id, rect, who, extra = "") {
 
 // Public: an effect with no banner (boom, pass, cloudBid, swap, wizard).
 export function burst(kind, rect) { ensure(); (EFFECTS[kind] || (() => {}))(rect); }
+
+// Public: the finished trick's cards sweep into the winner's seat tile. `hide` hides the real trick cards as the copies leave.
+export function flyWin(cards, to, mine, hide) {
+  ensure();
+  if (!to || !cards.length) return;
+  setTimeout(() => {
+    const tx = to.left + to.width / 2, ty = to.top + to.height / 2;
+    if (!reduce) {
+      hide();
+      cards.forEach((c, i) => {
+        const d = document.createElement("img"); d.className = "fx-fly"; d.src = `cards/${c.id}.webp`; d.alt = "";
+        Object.assign(d.style, { left: c.r.left + "px", top: c.r.top + "px", width: c.r.width + "px", animationDelay: i * 45 + "ms" });
+        d.style.setProperty("--dx", tx - c.r.left - c.r.width / 2 + "px"); d.style.setProperty("--dy", ty - c.r.top - c.r.height / 2 + "px");
+        layer.append(d); setTimeout(() => d.remove(), 700 + i * 45);
+      });
+    }
+    setTimeout(() => {
+      Object.assign(el("fx-glow", "", 900).style, { left: to.left + "px", top: to.top + "px", width: to.width + "px", height: to.height + "px" });
+      emit(reduce ? 4 : mine ? 40 : 14, () => { const a = rand(0, 6.28), s = rand(1, mine ? 4.5 : 2.5);
+        return { x: tx, y: ty, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(25, 45), size: rand(3, 6), star: true, color: "#ffe9a8" }; });
+    }, reduce ? 0 : 560);
+  }, 1050);
+}
+
+// Public: your own round result, the moment the round is scored.
+export function result(r) {
+  ensure();
+  const made = r.bid === r.won, off = Math.abs(r.bid - r.won);
+  el("fx-word", made ? "Nailed it!" : `${r.won > r.bid ? "Over" : "Under"} by ${off}`, 1500).style.setProperty("--fc", made ? "#7be3a4" : "#ff7b6b");
+  if (made) emit(reduce ? 20 : 120, i => ({ x: rand(0, W), y: -10, vx: rand(-1, 1), vy: rand(2, 5), g: 0.05, drag: 1, life: rand(70, 120), size: rand(4, 8), star: true,
+    color: ["#7be3a4", "#ffe9a8", "#ffffff", "#e3c375"][i % 4] }));
+  else shake(0.6);
+}
 
 // Public: game-start welcome on every screen. Tap to skip.
 export function welcome() {
