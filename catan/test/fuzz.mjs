@@ -6,10 +6,10 @@ const R = a => a[Math.floor(Math.random() * a.length)];
 const TYPES = ["place", "roll", "build", "buy", "sell", "contract", "charter", "play", "offer", "confirm", "cancel", "accept", "decline", "sail", "muster", "end", "nonsense", null];
 let refused = 0, applied = 0, games = 0;
 function randomAction(G, pid) {
-  const t = R(TYPES), tiles = Object.keys(G.tiles), res = R([...E.GOODS, "silver", "gold", undefined]);
+  const t = R(TYPES), tiles = Object.keys(G.tiles), corners = [...new Set(tiles.slice(0, 40).flatMap(E.cornersOf))], res = R([...E.GOODS, "silver", "gold", undefined]);
   switch (t) {
-    case "place": return { type: t, tile: R(tiles), to: R(tiles) };
-    case "build": { const k = R(["trail", "outpost", "ship", "repair", "hall", "tower"]); return { type: t, kind: k, tile: R(tiles), a: R(tiles), b: R(tiles), at: R(tiles) }; }
+    case "place": { const v = R(corners), [a, b] = R(E.vSides(v)); return Math.random() < 0.5 ? { type: t, v, a, b } : { type: t, v: R([v, "x~y~z", 7, undefined]), a: R(tiles), b: R([b, undefined, 3]) }; }
+    case "build": { const k = R(["trail", "outpost", "ship", "repair", "hall", "tower"]), v = R(corners), [a, b] = R(E.vSides(v)); return { type: t, kind: k, v: R([v, "q~r~s", undefined]), a: R([a, R(tiles)]), b: R([b, R(tiles)]), at: R(tiles) }; }
     case "buy": case "sell": case "muster": return { type: t, res };
     case "contract": return { type: t, i: R([0, 1, 2, 3, -1]) };
     case "play": return { type: t, card: R([...Object.keys(E.CHARTERS), "monument"]), res, tile: R(tiles), a: R(tiles), b: R(tiles) };
@@ -24,13 +24,14 @@ function randomAction(G, pid) {
 function check(G) {
   const fail = m => { throw new Error(m + " @turn " + G.turnNo); };
   for (const p of G.players) for (const [r, v] of Object.entries(G.hands[p.id])) if (!Number.isInteger(v) || v < 0) fail(`hand ${r}=${v}`);
-  const seen = new Set();
+  const at = new Set(G.builds.map(b => b.v));
+  if (at.size !== G.builds.length) fail("two outposts on one corner");
   for (const b of G.builds) {
-    const t = G.tiles[b.tile]; if (!t?.land) fail("building off land");
-    if (seen.has(b.pid + b.tile)) fail("two buildings of one player on a tile"); seen.add(b.pid + b.tile);
+    if (!E.vHexes(b.v).some(k => G.tiles[k]?.land)) fail("building off land");
+    if (E.vNbrs(b.v).some(u => at.has(u))) fail("outposts on neighbouring corners");
   }
-  for (const k in G.tiles) { const t = G.tiles[k]; if (t.land && G.builds.filter(b => b.tile === k).length > t.slots) fail("slots"); if (t.land && (t.rich < 0 || t.rich > E.RICH)) fail("rich"); }
-  const tk = new Set(); for (const t of G.trails) { if (tk.has(t.k)) fail("dup trail"); tk.add(t.k); if (!G.tiles[t.a]?.land || !G.tiles[t.b]?.land) fail("trail off land"); }
+  for (const k in G.tiles) { const t = G.tiles[k]; if (t.land && (t.rich < 0 || t.rich > E.RICH)) fail("rich"); }
+  const tk = new Set(); for (const t of G.trails) { if (tk.has(t.k)) fail("dup trail"); tk.add(t.k); if (!E.nbrs(t.a).includes(t.b)) fail("trail not a side"); if (!G.tiles[t.a]?.land && !G.tiles[t.b]?.land) fail("trail off land"); }
   const sk = new Set(); for (const s of G.ships) { const t = G.tiles[s.at]; if (!t || t.land || t.sea === "reef") fail("ship on " + (t?.sea || "nothing")); if (sk.has(s.at)) fail("two ships one hex"); sk.add(s.at); }
   for (const r of E.GOODS) if (G.prices[r] < 1 || G.prices[r] > 6) fail("price");
   if (G.phase !== "setup" && G.contracts.length !== 3) fail("contracts " + G.contracts.length);

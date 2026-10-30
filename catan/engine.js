@@ -1,6 +1,7 @@
 // Catan — pure rules engine with custom island-building rules. No DOM, no network.
 // newGame(players, settings) · act(G, pid, a) · viewFor · waitingOn · autoAction · smartAction · botAction · timerKey · pause
-// Board: axial hexes "q,r". Outposts sit in one of a tile's slots; trails link the centres of two adjacent land tiles.
+// Board: axial hexes "q,r". Outposts sit on corners (where three hexes meet, keyed "a~b~c") and harvest every tile they
+// touch; trails run along sides (the edge two neighbouring hexes share, keyed "a|b"). No outpost next to another.
 // Renown comes from outposts and from public delivery contracts; Seafarers adds fog, ships and isles; Cities & Knights
 // adds a visible raider fleet that every player defends against together through a shared beacon.
 
@@ -65,6 +66,33 @@ export const ring = (q, r) => Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r
 export const nbrs = k => { const [q, r] = unkey(k); return DIRS.map(([a, b]) => key(q + a, r + b)); };
 export const linkKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 export const pips = m => (m ? 6 - Math.abs(7 - m) : 0);
+// ---------------------------------------------------------------- corners and sides
+const S3 = Math.sqrt(3);
+export const vKey = ks => ks.slice().sort().join("~");
+export const vHexes = v => v.split("~");
+// the six corners of hex k: k plus each pair of neighbours that are also neighbours of each other
+export function cornersOf(k) {
+  const [q, r] = unkey(k);
+  return DIRS.map(([a, b], i) => { const [c, d] = DIRS[(i + 1) % 6]; return vKey([k, key(q + a, r + b), key(q + c, r + d)]); });
+}
+// a side's two end corners: the side's two hexes plus each hex next to both
+export function sideEnds(a, b) {
+  const nb = nbrs(b);
+  return nbrs(a).filter(x => nb.includes(x)).map(c => vKey([a, b, c]));
+}
+export const vSides = v => { const [x, y, z] = vHexes(v); return [[x, y], [y, z], [x, z]]; };
+export const vNbrs = v => vSides(v).map(([a, b]) => sideEnds(a, b).find(u => u !== v));
+// a corner's map position: the centre of its three hexes (the same layout the 3D world draws)
+export function vXY(v) {
+  let x = 0, y = 0;
+  for (const k of vHexes(v)) { const [q, r] = unkey(k); x += S3 * (q + r / 2); y += 1.5 * r; }
+  return [x / 3, y / 3];
+}
+export function sectorOfV(v) {
+  const [x, y] = vXY(v);
+  return Math.floor(((Math.atan2(y, x) + Math.PI * 2 + Math.PI / 6) % (Math.PI * 2)) / (Math.PI / 3)) % 6;
+}
+
 // six 60° coast sectors around the island centre (pointy-top layout, matches the 3D world); sector s is centred on bearing s·60°
 export function sectorOf(k) {
   const [q, r] = unkey(k); if (!q && !r) return -1;
@@ -78,14 +106,14 @@ const ri = (G, n) => Math.floor(rnd(G) * n);
 const shuffle = (G, a) => { for (let i = a.length - 1; i > 0; i--) { const j = ri(G, i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // ---------------------------------------------------------------- setup
-export const targetFor = (s, n = 4) => 13 + (s.sea ? 1 : 0) + (s.raiders ? 1 : 0) - (n === 2 ? 1 : 0);
+export const targetFor = (s, n = 4) => 17 + (s.sea ? 1 : 0) + (s.raiders ? 1 : 0) - (n === 2 ? 1 : 0);
 export function newGame(players, settings = {}) {
   const n = players.length;
   if (n < MIN_PLAYERS || n > MAX_PLAYERS) throw new Error("Catan needs 2 to 6 players.");
   if (new Set(players.map(p => p.id)).size !== n || players.some(p => typeof p.id !== "string" || !p.id)) throw new Error("Every player needs their own id.");
   const sea = !!(settings.sea ?? 1), raiders = !!(settings.raiders ?? 1);
   const G = {
-    v: 2, game: "tide", gameId: Math.random().toString(36).slice(2, 10), seq: 0, n: 0,
+    v: 3, game: "tide", gameId: Math.random().toString(36).slice(2, 10), seq: 0, n: 0,
     rng: (settings.seed ?? Math.floor(Math.random() * 2 ** 32)) >>> 0,
     sea, raiders, target: settings.target > 0 ? +settings.target : targetFor({ sea, raiders }, n),
     players: players.map(p => ({ id: p.id, name: p.name })),
@@ -149,7 +177,7 @@ function makeBoard(G) {
   }
   for (const k of use) {
     const [q, r] = unkey(k);
-    G.tiles[k] = { q, r, land: true, terrain: T[k]?.terrain || "ruins", mark: T[k]?.mark || 0, rich: RICH, slots: 3 };
+    G.tiles[k] = { q, r, land: true, terrain: T[k]?.terrain || "ruins", mark: T[k]?.mark || 0, rich: RICH };
   }
   // sea: rings around the coast; with Seafarers the outer rings start fogged and are drawn from a bag when revealed
   const outer = G.R + (G.sea ? 4 : 3);
@@ -188,10 +216,23 @@ export function waitingOn(G) { return G.phase === "gameOver" ? [] : [cur(G)]; }
 export const timerKey = G => `${G.turnNo}.${G.phase}.${G.setupStep}`;
 export const pause = () => null;
 const isLand = (G, k) => !!G.tiles[k]?.land;
-const buildsOn = (G, k) => G.builds.filter(b => b.tile === k);
+const buildsOn = (G, k) => G.builds.filter(b => vHexes(b.v).includes(k));
+const buildAt = (G, v) => G.builds.find(b => b.v === v);
 const mine = (G, pid) => G.builds.filter(b => b.pid === pid);
 const hasTrail = (G, a, b) => G.trails.some(t => t.k === linkKey(a, b));
-const touches = (G, pid, k) => G.trails.some(t => t.pid === pid && (t.a === k || t.b === k));
+const landSide = (G, a, b) => isLand(G, a) || isLand(G, b);
+const onLand = (G, v) => vHexes(v).some(k => isLand(G, k));
+// free corner with no outpost on any neighbouring corner
+const spaced = (G, v) => !buildAt(G, v) && vNbrs(v).every(u => !buildAt(G, u));
+// corners your network reaches: your outposts, and the ends of your trails unless a rival's outpost sits there
+function reach(G, pid) {
+  const out = new Set(mine(G, pid).map(b => b.v));
+  for (const t of G.trails) if (t.pid === pid) for (const v of sideEnds(t.a, t.b)) { const b = buildAt(G, v); if (!b || b.pid === pid) out.add(v); }
+  return out;
+}
+const trailEnds = (G, pid) => new Set(G.trails.filter(t => t.pid === pid).flatMap(t => sideEnds(t.a, t.b)));
+// every corner of the land (isles included)
+const landCorners = G => [...new Set(Object.keys(G.tiles).filter(k => isLand(G, k)).flatMap(cornersOf))];
 export function renown(G, pid) {
   return mine(G, pid).filter(b => !b.burned).length + G.score[pid] + (G.awards.chart === pid ? 2 : 0);
 }
@@ -222,29 +263,30 @@ export const contract = id => CONTRACTS.find(c => c.id === id);
 // legal spots, used by the UI to highlight and by the bot
 export function legal(G, pid, kind) {
   const out = [];
-  if (kind === "setup") {
-    for (const k in G.tiles) {
-      const t = G.tiles[k]; if (!t.land || t.isle) continue;
-      if (buildsOn(G, k).length >= t.slots || buildsOn(G, k).some(b => b.pid === pid)) continue;
-      for (const x of nbrs(k)) if (isLand(G, x) && !hasTrail(G, k, x)) out.push({ tile: k, to: x });
+  if (kind === "setup") {   // a corner of the main island (not an isle), plus one side leaving it
+    for (const v of landCorners(G)) {
+      if (!vHexes(v).some(k => isLand(G, k) && !G.tiles[k].isle) || !spaced(G, v)) continue;
+      for (const [a, b] of vSides(v)) if (landSide(G, a, b) && !hasTrail(G, a, b)) out.push({ v, a, b, k: linkKey(a, b) });
     }
   } else if (kind === "trail") {
-    for (const t of Object.keys(G.tiles)) {
-      if (!isLand(G, t) || !(touches(G, pid, t) || buildsOn(G, t).some(b => b.pid === pid))) continue;
-      for (const x of nbrs(t)) if (isLand(G, x) && !hasTrail(G, t, x) && !out.some(o => o.k === linkKey(t, x))) out.push({ a: t, b: x, k: linkKey(t, x) });
+    const seen = new Set();
+    for (const v of reach(G, pid)) for (const [a, b] of vSides(v)) {
+      const k = linkKey(a, b);
+      if (!seen.has(k) && landSide(G, a, b) && !hasTrail(G, a, b)) { seen.add(k); out.push({ a, b, k }); }
     }
-  } else if (kind === "outpost") {
-    for (const k in G.tiles) {
-      const t = G.tiles[k]; if (!t.land) continue;
-      const on = buildsOn(G, k); if (on.length >= t.slots || on.some(b => b.pid === pid)) continue;
-      if (touches(G, pid, k) || (t.isle && G.ships.some(s => s.pid === pid && nbrs(k).includes(s.at)))) out.push({ tile: k });
+  } else if (kind === "outpost") {   // at the end of one of your trails, or on an isle corner beside one of your ships
+    const ends = trailEnds(G, pid), docks = G.ships.filter(s => s.pid === pid).map(s => s.at);
+    for (const v of landCorners(G)) {
+      if (!spaced(G, v)) continue;
+      const hs = vHexes(v);
+      if (ends.has(v) || (hs.some(k => G.tiles[k]?.isle) && hs.some(k => docks.includes(k)))) out.push({ v });
     }
   } else if (kind === "repair") {
-    for (const b of mine(G, pid)) if (b.burned) out.push({ tile: b.tile });
+    for (const b of mine(G, pid)) if (b.burned) out.push({ v: b.v });
   } else if (kind === "ship") {
     if (G.sea) {
       const seen = new Set();
-      for (const b of mine(G, pid)) for (const x of nbrs(b.tile)) {
+      for (const b of mine(G, pid)) for (const x of vHexes(b.v)) {
         const t = G.tiles[x];
         if (t && !t.land && !t.fog && t.sea !== "reef" && !G.ships.some(s => s.at === x) && !seen.has(x)) { seen.add(x); out.push({ at: x }); }
       }
@@ -278,14 +320,15 @@ function apply(G, pid, a) {
   switch (a.type) {
     case "place": {
       if (G.phase !== "setup") err("Setup is over.");
-      if (!legal(G, pid, "setup").some(o => o.tile === a.tile && o.to === a.to)) err("You can't settle there.");
-      G.builds.push({ pid, tile: a.tile, slot: freeSlot(G, a.tile) });
-      G.trails.push({ pid, a: a.tile, b: a.to, k: linkKey(a.tile, a.to) });
-      ev.tile = a.tile; ev.to = a.to;
-      if (G.setupStep >= G.players.length) {
-        const r = TERRAIN[G.tiles[a.tile].terrain];
-        if (r) h[r] += 2; else h.silver += 2;
-        ev.gain = r ? { [r]: 2 } : { silver: 2 };
+      if (typeof a.a !== "string" || typeof a.b !== "string" || !legal(G, pid, "setup").some(o => o.v === a.v && o.k === linkKey(a.a, a.b))) err("You can't settle there.");
+      G.builds.push({ pid, v: a.v });
+      G.trails.push({ pid, a: a.a, b: a.b, k: linkKey(a.a, a.b) });
+      ev.v = a.v; ev.a = a.a; ev.b = a.b;
+      if (G.setupStep >= G.players.length) {   // the second outpost pays 1 of each good it touches (2 silver if it touches none)
+        const gain = {};
+        for (const k of vHexes(a.v)) { const r = isLand(G, k) && TERRAIN[G.tiles[k].terrain]; if (r) { h[r]++; gain[r] = (gain[r] || 0) + 1; } }
+        if (!Object.keys(gain).length) { h.silver += 2; gain.silver = 2; }
+        ev.gain = gain;
       }
       G.setupStep++;
       if (G.setupStep >= G.setupOrder.length) {
@@ -389,7 +432,6 @@ function apply(G, pid, a) {
   checkWin(G);
   return G;
 }
-const freeSlot = (G, k) => [0, 1, 2].find(s => !buildsOn(G, k).some(b => b.slot === s));
 function clean(o) {
   const out = {};
   for (const [r, n] of Object.entries(o || {})) {
@@ -426,16 +468,16 @@ function build(G, pid, a, ev) {
     return;
   }
   if (kind === "outpost") {
-    if (!legal(G, pid, "outpost").some(o => o.tile === a.tile)) err("You can't build an outpost there.");
-    pay(h, c); G.builds.push({ pid, tile: a.tile, slot: freeSlot(G, a.tile) }); ev.tile = a.tile;
+    if (!legal(G, pid, "outpost").some(o => o.v === a.v)) err("You can't build an outpost there.");
+    pay(h, c); G.builds.push({ pid, v: a.v }); ev.v = a.v;
     return;
   }
   if (kind === "repair") {
-    const b = mine(G, pid).find(x => x.tile === a.tile && x.burned); if (!b) err("Pick one of your burned outposts.");
-    pay(h, c); b.burned = false; ev.tile = a.tile;
+    const b = mine(G, pid).find(x => x.v === a.v && x.burned); if (!b) err("Pick one of your burned outposts.");
+    pay(h, c); b.burned = false; ev.v = a.v;
     return;
   }
-  if (!legal(G, pid, "ship").some(o => o.at === a.at)) err("Launch next to one of your coastal outposts.");
+  if (!legal(G, pid, "ship").some(o => o.at === a.at)) err("Launch beside one of your coastal outposts.");
   pay(h, c);
   const s = { id: ++G.shipN, pid, at: a.at }; G.ships.push(s); G.sailed[s.id] = shipMoves(G); ev.at = a.at; ev.ship = s.id;
 }
@@ -465,7 +507,7 @@ function reveal(G, k, pid, ev) {
   t.sea = kind;
   if (kind === "current") t.dir = ri(G, 6);
   if (kind === "shoal") { t.mark = [4, 5, 6, 8, 9, 10][ri(G, 6)]; t.rich = RICH; }
-  if (kind === "isle") Object.assign(t, { land: true, isle: true, terrain: ["pine", "quarry", "flax", "barley", "copper"][ri(G, 5)], mark: [3, 4, 5, 9, 10, 11][ri(G, 6)], rich: RICH, slots: 2 });
+  if (kind === "isle") Object.assign(t, { land: true, isle: true, terrain: ["pine", "quarry", "flax", "barley", "copper"][ri(G, 5)], mark: [3, 4, 5, 9, 10, 11][ri(G, 6)], rich: RICH });
   G.revealed[pid]++;
   (ev.reveal ||= []).push({ tile: k, sea: kind });
   const hold = G.awards.chart;
@@ -510,7 +552,7 @@ function omen(G) {
       }
       break;
     }
-    case "bumper": for (const b of G.builds) if (!b.burned && G.tiles[b.tile].terrain === "barley") G.hands[b.pid].grain++; break;
+    case "bumper": for (const b of G.builds) if (!b.burned && vHexes(b.v).some(k => G.tiles[k]?.land && G.tiles[k].terrain === "barley")) G.hands[b.pid].grain++; break;
     case "spike": case "glut": { const r = RES[ri(G, 5)]; ev.res = r; G.prices[r] = Math.max(1, Math.min(6, G.prices[r] + (o === "spike" ? 2 : -2))); break; }
     case "rot": ev.lost = {}; for (const id of ids) { const h = G.hands[id]; if (h.grain >= 5) { const l = Math.floor(h.grain / 2); h.grain -= l; ev.lost[id] = l; } } break;
     case "festival": for (const id of ids) G.hands[id].silver++; break;
@@ -572,7 +614,7 @@ function newFleet(G, ev) {
   G.beacon = { def: 0, by: {} };
   ev.fleet = { ...G.fleet };
 }
-export const raidStrength = G => G.fleet ? 2 + G.builds.filter(b => !b.burned && sectorOf(b.tile) === G.fleet.sector).length + Math.min(2, Math.floor(G.raids / 2)) : 0;
+export const raidStrength = G => G.fleet ? 2 + G.builds.filter(b => !b.burned && sectorOfV(b.v) === G.fleet.sector).length + Math.min(2, Math.floor(G.raids / 2)) : 0;
 
 function endTurn(G, ev) {
   G.offer = null; G.delivered = false; G.moves = 0; G.mustered = 0; G.dealt = {}; G.played = false; G.rush = false; G.sailed = {}; G.dice = null;
@@ -589,6 +631,7 @@ function endTurn(G, ev) {
     ev.retired = G.contracts.shift(); G.contractDiscard.push(ev.retired); G.contracts.push(drawContract(G));
   }
 }
+const cornerPips = (G, v) => vHexes(v).reduce((s, k) => s + (G.tiles[k]?.land ? pips(G.tiles[k].mark) : 0), 0);
 function raidNow(G) {
   const sector = G.fleet.sector, strength = raidStrength(G), def = G.beacon.def, by = G.beacon.by;
   const R = { sector, strength, defence: def, by: { ...by }, won: def >= strength, honours: [], paid: [], burned: [] };
@@ -600,9 +643,9 @@ function raidNow(G) {
   } else {
     // each player with an outpost in the sector loses one (their best-yielding one burns)
     for (const p of G.players) {
-      const hit = G.builds.filter(b => b.pid === p.id && !b.burned && sectorOf(b.tile) === sector).sort((a, b) => pips(G.tiles[b.tile].mark) - pips(G.tiles[a.tile].mark))[0];
+      const hit = G.builds.filter(b => b.pid === p.id && !b.burned && sectorOfV(b.v) === sector).sort((a, b) => cornerPips(G, b.v) - cornerPips(G, a.v))[0];
       const standing = G.builds.filter(b => b.pid === p.id && !b.burned).length;
-      if (hit && standing > 1) { hit.burned = true; R.burned.push({ pid: p.id, tile: hit.tile }); }   // never a player's last standing outpost
+      if (hit && standing > 1) { hit.burned = true; R.burned.push({ pid: p.id, v: hit.v }); }   // never a player's last standing outpost
     }
   }
   G.raids++;
@@ -649,12 +692,16 @@ export function viewFor(G, pid) {
 }
 
 // ---------------------------------------------------------------- automatic play
-const tileValue = (G, k, pid) => {
-  const t = G.tiles[k]; if (!t?.land) return 0;
-  let v = t.terrain === "ruins" ? 0 : pips(t.mark);
-  const r = TERRAIN[t.terrain];
-  if (pid && r) { const have = new Set(mine(G, pid).map(b => TERRAIN[G.tiles[b.tile].terrain])); if (!have.has(r)) v += 2; }
-  return v - buildsOn(G, k).length * 0.7;
+// what a corner is worth to a player: the yield of the tiles it touches, more for goods they don't harvest yet
+const cornerValue = (G, v, pid) => {
+  const have = new Set(pid ? mine(G, pid).flatMap(b => vHexes(b.v)).map(k => G.tiles[k]?.land && TERRAIN[G.tiles[k].terrain]).filter(Boolean) : []);
+  let val = 0;
+  for (const k of vHexes(v)) {
+    const t = G.tiles[k]; if (!t?.land) continue;
+    const r = TERRAIN[t.terrain]; if (!r) continue;
+    val += pips(t.mark) + (pid && !have.has(r) ? 2 : 0) - buildsOn(G, k).length * 0.7;
+  }
+  return val;
 };
 // on the clock: do the minimum (place / roll / end the turn)
 export function smartAction(G, pid) {
@@ -666,8 +713,12 @@ export function smartAction(G, pid) {
 export const autoAction = smartAction;
 function setupPick(G, pid) {
   let best = null, bv = -1e9;
-  for (const o of legal(G, pid, "setup")) { const v = tileValue(G, o.tile, pid) * 3 + tileValue(G, o.to, pid) + Math.random() * 0.01; if (v > bv) { bv = v; best = o; } }
-  return { type: "place", tile: best.tile, to: best.to };
+  for (const o of legal(G, pid, "setup")) {
+    const far = sideEnds(o.a, o.b).find(u => u !== o.v);
+    const v = cornerValue(G, o.v, pid) * 3 + (far ? Math.max(0, ...vNbrs(far).filter(u => u !== o.v && spaced(G, u) && onLand(G, u)).map(u => cornerValue(G, u, pid))) : 0) + Math.random() * 0.01;
+    if (v > bv) { bv = v; best = o; }
+  }
+  return { type: "place", v: best.v, a: best.a, b: best.b };
 }
 // a seat played by a bot: contracts, outposts, defence, exploring, then the market to close a gap
 export function botAction(G, pid) {
@@ -677,10 +728,10 @@ export function botAction(G, pid) {
   // the best contract we can meet
   const ci = G.contracts.map((id, i) => ({ i, c: contract(id) })).filter(x => shortfall(h, x.c.need) <= (G.rush ? 1 : 0)).sort((a, b) => b.c.renown - a.c.renown)[0];
   if (ci && !G.delivered) return { type: "contract", i: ci.i };
-  if (outs.length && nOut < LIMIT.outpost && can("outpost")) return { type: "build", kind: "outpost", tile: outs.sort((a, b) => tileValue(G, b.tile, pid) - tileValue(G, a.tile, pid))[0].tile };
-  const rep = legal(G, pid, "repair"); if (rep.length && can("repair")) return { type: "build", kind: "repair", tile: rep[0].tile };
+  if (outs.length && nOut < LIMIT.outpost && can("outpost")) return { type: "build", kind: "outpost", v: outs.sort((a, b) => cornerValue(G, b.v, pid) - cornerValue(G, a.v, pid))[0].v };
+  const rep = legal(G, pid, "repair"); if (rep.length && can("repair")) return { type: "build", kind: "repair", v: rep[0].v };
   if (G.raiders && G.fleet && G.fleet.eta <= 4 && G.mustered < MUSTER_MAX && G.beacon.def < raidStrength(G)) {
-    const exposed = mine(G, pid).some(b => !b.burned && sectorOf(b.tile) === G.fleet.sector);
+    const exposed = mine(G, pid).some(b => !b.burned && sectorOfV(b.v) === G.fleet.sector);
     const r = ["copper", "stone", "timber"].find(x => h[x] > (exposed ? 0 : 1));
     if (r && (exposed || Math.random() < 0.4)) return { type: "muster", res: r };
   }
@@ -688,9 +739,13 @@ export function botAction(G, pid) {
   if (ch && !G.played && (ch.card !== "rush" || G.contracts.some(id => shortfall(h, contract(id).need) === 1))) return { type: "play", card: ch.card, res: ch.card === "windfall" ? RES[Math.floor(Math.random() * 5)] : undefined };
   const trails = G.trails.filter(t => t.pid === pid).length;
   if (!outs.length && trails < LIMIT.trail && can("trail")) {
-    const opts = legal(G, pid, "trail").map(o => ({ ...o, far: touches(G, pid, o.a) || buildsOn(G, o.a).some(b => b.pid === pid) ? o.b : o.a }));
-    const good = opts.filter(o => { const on = buildsOn(G, o.far); return on.length < G.tiles[o.far].slots && !on.some(b => b.pid === pid); });
-    if (good.length) { const o = good.sort((a, b) => tileValue(G, b.far, pid) - tileValue(G, a.far, pid))[0]; return { type: "build", kind: "trail", a: o.a, b: o.b }; }
+    // score a side by the best open corner it opens up: at its far end, or one side further on (worth a little less)
+    const have = reach(G, pid), spot = u => onLand(G, u) && spaced(G, u) ? cornerValue(G, u, pid) : -1;
+    const opts = legal(G, pid, "trail").map(o => {
+      const far = sideEnds(o.a, o.b).find(u => !have.has(u)); if (!far) return { ...o, sc: -1 };
+      return { ...o, sc: Math.max(spot(far), 0.6 * Math.max(-1, ...vNbrs(far).filter(u => u && !have.has(u)).map(spot))) };
+    }).filter(o => o.sc > 0);
+    if (opts.length) { const o = opts.sort((a, b) => b.sc - a.sc)[0]; return { type: "build", kind: "trail", a: o.a, b: o.b }; }
   }
   if (G.sea) {
     const ships = G.ships.filter(s => s.pid === pid);

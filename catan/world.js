@@ -5,14 +5,14 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/OrbitControls.js";
 import { Sky } from "three/addons/Sky.js";
 import { mergeGeometries } from "three/addons/BufferGeometryUtils.js";
-import { DIRS, key, unkey, ring, nbrs, sectorOf, TERRAIN } from "./engine.js";
+import { DIRS, key, unkey, ring, nbrs, sectorOf, TERRAIN, vXY, sideEnds } from "./engine.js";
 
 const S3 = Math.sqrt(3);
 export const hexXZ = k => { const [q, r] = typeof k === "string" ? unkey(k) : k; return [S3 * (q + r / 2), 1.5 * r]; };
+// a hex centre, or a corner ("a~b~c") where three hexes meet
+export const posXZ = k => (typeof k === "string" && k.includes("~") ? vXY(k) : hexXZ(k));
 const TOP = 0.32;                       // land surface height at a tile's edge
 const AMP = { pine: 0.12, quarry: 0.2, flax: 0.05, barley: 0.04, copper: 0.3, ruins: 0.06 };
-// trails leave a tile towards its neighbours (0°, 60°, … 300°); outpost slots sit between them at 30°, 150°, 270° so no trail runs under a house
-const SLOT = [0, 1, 2].map(i => { const a = Math.PI / 6 + i * (2 * Math.PI / 3); return [Math.cos(a) * 0.5, Math.sin(a) * 0.5]; });
 const VER = "?v=1";
 
 // ---------------------------------------------------------------- noise (value noise, deterministic per tile)
@@ -29,13 +29,13 @@ function hexFrac(lx, lz) {
   for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3, nx = Math.cos(a), nz = Math.sin(a); m = Math.max(m, (lx * nx + lz * nz) / (S3 / 2)); }
   return m;
 }
-// surface height of a tile at local offset (lx,lz); slots and the centre are flattened so pieces sit level
+// surface height of a tile at local offset (lx,lz); the centre is flattened for the token, and the rim (where outposts and
+// trails stand on corners and sides) always sits at TOP
 function tileHeight(t, lx, lz) {
   const f = Math.min(1, hexFrac(lx, lz)), fall = Math.pow(Math.max(0, 1 - f), 0.8);
   let h = (fbm(lx * 1.6 + t.q * 3.1, lz * 1.6 + t.r * 2.3, t.q * 13 + t.r) - 0.35) * (AMP[t.terrain] || 0.05) * 2 * fall;
   if (t.terrain === "copper" || t.terrain === "quarry") h += 0.12 * Math.max(0, 1 - Math.hypot(lx * 1.3, lz * 1.3)) * fall;
   let flat = Math.max(0, 1 - Math.hypot(lx, lz) / 0.28);
-  for (const [sx, sz] of SLOT) flat = Math.max(flat, Math.max(0, 1 - Math.hypot(lx - sx, lz - sz) / 0.22));
   const plateau = (fbm(t.q + 0.5, t.r + 0.5, 9) - 0.5) * 0.06 + 0.04;
   return TOP + plateau * fall + h * (1 - Math.min(1, flat * 1.4));
 }
@@ -284,6 +284,7 @@ export function createWorld(canvas, opts = {}) {
     tilesG.add(g); tileObjs[k] = g; tileMats[k] = mat;
     return g;
   }
+  const isLandK = k => !!view?.tiles[k]?.land;
   function heightAt(x, z) {
     const k = pixelToHex(x, z), t = view?.tiles[k];
     if (!t?.land) return 0.05;
@@ -314,8 +315,7 @@ export function createWorld(canvas, opts = {}) {
     for (let i = 0; pts.length < n && i < n * 6; i++) {
       const a = hash(i, seed, t.q * 7 + t.r) * Math.PI * 2, d = Math.sqrt(hash(i, seed + 1, t.q + t.r * 5)) * 0.92;
       const x = Math.cos(a) * d, z = Math.sin(a) * d;
-      if (hexFrac(x, z) > 0.9 || Math.hypot(x, z) < 0.26) continue;
-      if (SLOT.some(([sx, sz]) => Math.hypot(x - sx, z - sz) < avoid)) continue;
+      if (hexFrac(x, z) > 1 - avoid * 0.6 || Math.hypot(x, z) < 0.26) continue;   // keep the rim clear for trails and outposts
       pts.push([x, z]);
     }
     return pts;
@@ -425,10 +425,12 @@ export function createWorld(canvas, opts = {}) {
     g.userData = { body, sail, pennant };
     return g;
   }
+  // a trail runs along the side two hexes share, from corner to corner, leaving room for an outpost at each end
   function trailMesh(a, b, pid) {
-    const [ax, az] = hexXZ(a), [bx, bz] = hexXZ(b), g = new THREE.Group();
-    const n = 9, pts = [];
-    for (let i = 0; i <= n; i++) { const f = 0.22 + (i / n) * 0.56, x = ax + (bx - ax) * f, z = az + (bz - az) * f; pts.push(new THREE.Vector3(x, heightAt(x, z) + 0.015, z)); }
+    const [e1, e2] = sideEnds(a, b), [ax, az] = vXY(e1), [bx, bz] = vXY(e2), g = new THREE.Group();
+    const y = (isLandK(a) || isLandK(b) ? TOP : 0.05) + 0.015;
+    const n = 7, pts = [];
+    for (let i = 0; i <= n; i++) { const f = 0.2 + (i / n) * 0.6, x = ax + (bx - ax) * f, z = az + (bz - az) * f; pts.push(new THREE.Vector3(x, y, z)); }
     const dir = new THREE.Vector3(bx - ax, 0, bz - az).normalize(), side = new THREE.Vector3(-dir.z, 0, dir.x);
     for (let i = 0; i < n; i++) {
       const p = pts[i].clone().lerp(pts[i + 1], 0.5);
@@ -463,15 +465,20 @@ export function createWorld(canvas, opts = {}) {
   // ------------------------------------------------ highlight / picking
   const hiMat = new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide });
   const hiRing = new THREE.RingGeometry(0.82, 0.95, 6, 1); hiRing.rotateX(-Math.PI / 2); hiRing.rotateY(Math.PI / 6);
+  const cornerRing = new THREE.RingGeometry(0.2, 0.28, 24, 1); cornerRing.rotateX(-Math.PI / 2);
   const hiDisc = new THREE.CircleGeometry(0.95, 6); hiDisc.rotateX(-Math.PI / 2); hiDisc.rotateY(Math.PI / 6);
-  let armed = null;   // { kind: "tile"|"link"|"sea", targets: [...], onPick }
+  let armed = null;   // { kind: "tile"|"corner"|"link"|"sea", targets: [...], onPick }
   function arm(spec) {
     hiG.clear(); armed = spec || null;
     if (!spec) return;
     for (const t of spec.targets) {
-      if (spec.kind === "link") {
-        const [ax, az] = hexXZ(t.a), [bx, bz] = hexXZ(t.b), x = (ax + bx) / 2, z = (az + bz) / 2;
-        const post = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 10), hiMat.clone()); post.position.set(x, heightAt(x, z) + 0.12, z); post.userData.target = t; post.userData.pulse = true; hiG.add(post);
+      if (spec.kind === "link") {   // a glowing bar along the side
+        const [e1, e2] = sideEnds(t.a, t.b), [ax, az] = vXY(e1), [bx, bz] = vXY(e2), x = (ax + bx) / 2, z = (az + bz) / 2;
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.16), hiMat.clone()); bar.position.set(x, TOP + 0.07, z); bar.rotation.y = -Math.atan2(bz - az, bx - ax);
+        bar.userData.target = t; bar.userData.pulse = true; hiG.add(bar);
+      } else if (spec.kind === "corner") {   // a glowing bead on the corner
+        const [x, z] = vXY(t.v), bead = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 10), hiMat.clone()); bead.position.set(x, TOP + 0.14, z);
+        bead.userData.target = t; bead.userData.pulse = true; hiG.add(bead);
       } else {
         const [x, z] = hexXZ(t.k), land = view.tiles[t.k]?.land;
         const m = new THREE.Mesh(spec.kind === "sea" ? hiDisc : hiRing, hiMat.clone()); m.position.set(x, land ? heightAt(x, z) + 0.06 : 0.15, z);
@@ -490,7 +497,12 @@ export function createWorld(canvas, opts = {}) {
     if (armed) {
       const hits = ray.intersectObjects(hiG.children, false);
       if (hits[0]) { armed.onPick(hits[0].object.userData.target); return; }
-      if (armed.kind !== "link") {
+      if (armed.kind === "corner") {   // a near miss still picks the closest corner
+        const p = new THREE.Vector3(); ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -TOP), p);
+        let best = null, bd = 0.4;
+        for (const t of armed.targets) { const [x, z] = vXY(t.v), d = Math.hypot(p.x - x, p.z - z); if (d < bd) { bd = d; best = t; } }
+        if (best) { armed.onPick(best); return; }
+      } else if (armed.kind !== "link") {
         const p = new THREE.Vector3(); ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -(armed.kind === "sea" ? 0.05 : TOP)), p);
         const k = pixelToHex(p.x, p.z), t = armed.targets.find(x => x.k === k);
         if (t) { armed.onPick(t); return; }
@@ -530,13 +542,13 @@ export function createWorld(canvas, opts = {}) {
     // outposts (charred and smoking while burned)
     const seen = new Set();
     for (const b of v.builds) {
-      const id = `${b.pid}@${b.tile}`; seen.add(id);
-      const t = v.tiles[b.tile], [cx, cz] = hexXZ(b.tile), [sx, sz] = SLOT[b.slot ?? 0];
+      const id = `${b.pid}@${b.v}`; seen.add(id);
+      const [cx, cz] = vXY(b.v);
       let o = buildObjs[id];
       if (o && !!o.userData.burned !== !!b.burned) { piecesG.remove(o); o = null; delete buildObjs[id]; }
       if (!o) {
         o = house(b.pid, false, b.burned); o.userData.burned = !!b.burned; o.userData.pid = b.pid;
-        o.position.set(cx + sx, tileHeight(t, sx, sz), cz + sz); o.rotation.y = Math.atan2(sx, sz) + Math.PI; o.scale.setScalar(1.7); o.userData.s = 1.7;
+        o.position.set(cx, TOP, cz); o.rotation.y = Math.atan2(cx, cz) + Math.PI; o.scale.setScalar(1.7); o.userData.s = 1.7;   // door faces the island's middle
         piecesG.add(o); buildObjs[id] = o; if (!instant && prevV && !b.burned) drop(o);
       }
     }
@@ -583,14 +595,14 @@ export function createWorld(canvas, opts = {}) {
 
   // ------------------------------------------------ effects used by the HUD
   const tmpV = new THREE.Vector3();
-  function screenOf(k, y = 0.5) { const [x, z] = hexXZ(k); tmpV.set(x, y, z).project(camera); const r = canvas.getBoundingClientRect(); return { left: r.left + (tmpV.x + 1) / 2 * r.width - 1, top: r.top + (1 - tmpV.y) / 2 * r.height - 1, width: 2, height: 2 }; }
+  function screenOf(k, y = 0.5) { const [x, z] = posXZ(k); tmpV.set(x, y, z).project(camera); const r = canvas.getBoundingClientRect(); return { left: r.left + (tmpV.x + 1) / 2 * r.width - 1, top: r.top + (1 - tmpV.y) / 2 * r.height - 1, width: 2, height: 2 }; }
   function pulseTile(k, col = 0xffe08a) {
-    const [x, z] = hexXZ(k), m = new THREE.Mesh(hiRing, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, depthWrite: false }));
-    m.position.set(x, heightAt(x, z) + 0.08, z); fxG.add(m);
+    const corner = k.includes("~"), [x, z] = posXZ(k), m = new THREE.Mesh(corner ? cornerRing : hiRing, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, depthWrite: false }));
+    m.position.set(x, corner ? TOP + 0.05 : heightAt(x, z) + 0.08, z); fxG.add(m);
     const glow = new THREE.PointLight(col, 3, 2.2); glow.position.set(x, 0.9, z); fxG.add(glow);
     tween(1300, f => { m.scale.setScalar(1 + f * 0.25); m.material.opacity = 0.9 * (1 - f); glow.intensity = 3 * (1 - f); }, () => { fxG.remove(m, glow); });
   }
-  function focus(k, dist = 9, ms = 1200) { const [x, z] = hexXZ(k); camTo(new THREE.Vector3(x, 0, z), dist, ms); }
+  function focus(k, dist = 9, ms = 1200) { const [x, z] = posXZ(k); camTo(new THREE.Vector3(x, 0, z), dist, ms); }
   let camTween = null;
   function camTo(target, dist, ms = 1400) {
     const off = camera.position.clone().sub(controls.target).normalize().multiplyScalar(dist);
@@ -613,7 +625,7 @@ export function createWorld(canvas, opts = {}) {
         for (let i = 0; i < 24; i++) setTimeout(() => { const from = fleet[i % fleet.length].position.clone().add(new THREE.Vector3(0, 0.4, 0)); const to = coast.clone().multiplyScalar(0.7).add(new THREE.Vector3((Math.random() - 0.5) * 2, 0.3, (Math.random() - 0.5) * 2)); arrow(from, to); }, i * 90);
         setTimeout(() => {
           if (R.won) { for (const s of fleet) puff(s.position.clone().add(new THREE.Vector3(0, 0.3, 0)), { n: 6, col: 0xff7a2a, size: 0.5, up: 0.6, add: true, life: 1.2 }); sfx("cheer"); }
-          else for (const L of R.burned) { const [x, z] = hexXZ(L.tile); puff(new THREE.Vector3(x, 0.5, z), { n: 26, col: 0x3a302a, size: 0.8, up: 0.5, spread: 0.5, life: 3 }); puff(new THREE.Vector3(x, 0.45, z), { n: 12, col: 0xff6a1a, size: 0.4, up: 0.4, add: true, life: 1.4 }); }
+          else for (const L of R.burned) { const [x, z] = posXZ(L.v); puff(new THREE.Vector3(x, 0.5, z), { n: 26, col: 0x3a302a, size: 0.8, up: 0.5, spread: 0.5, life: 3 }); puff(new THREE.Vector3(x, 0.45, z), { n: 12, col: 0xff6a1a, size: 0.4, up: 0.4, add: true, life: 1.4 }); }
           tween(2600, f => { for (const s of fleet) { s.position.lerpVectors(coast, far, ease(f) * 0.7).add(s.userData.raid.off); if (R.won) s.position.y = -f * 0.8; } }, () => { fleet.forEach(s => scene.remove(s)); home(); res(); });
         }, 2400);
       });

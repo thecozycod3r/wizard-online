@@ -18,7 +18,8 @@ for (const [sea, raiders] of combos) for (let n = 2; n <= 6; n++) for (let g = 0
     }
     if (++steps > 20000) throw new Error(`no end: sea=${sea} raiders=${raiders} n=${n}`);
     for (const p of G.players) for (const [r, v] of Object.entries(G.hands[p.id])) if (v < 0 || !Number.isInteger(v)) throw new Error(`bad hand ${r}=${v}`);
-    for (const k in G.tiles) { const t = G.tiles[k]; if (t.land && G.builds.filter(b => b.tile === k).length > t.slots) throw new Error("slot overflow"); }
+    const at = new Set(G.builds.map(b => b.v));
+    if (at.size !== G.builds.length || G.builds.some(b => E.vNbrs(b.v).some(u => at.has(u)))) throw new Error("outposts too close");
   }
   games++; turns += G.turnNo; maxT = Math.max(maxT, G.turnNo);
   if (G.result.winners.length === 1 && E.renown(G, G.result.winners[0]) >= G.target) ends.target++; else ends.cap++;

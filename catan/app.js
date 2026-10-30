@@ -102,15 +102,15 @@ function armBoard(v) {
   if (v.phase === "setup") {
     const opts = E.legal(G, me, "setup");
     if (!mode || mode.kind !== "setup") mode = { kind: "setup" };
-    if (!mode.tile) return world.arm({ kind: "tile", targets: [...new Set(opts.map(o => o.tile))].map(k => ({ k })), onPick: t => { mode.tile = t.k; T.render(); } });
-    return world.arm({ kind: "link", targets: opts.filter(o => o.tile === mode.tile).map(o => ({ a: o.tile, b: o.to })), onPick: t => { const tile = mode.tile; mode = null; T.room.act({ type: "place", tile, to: t.b }); } });
+    if (!mode.v) return world.arm({ kind: "corner", targets: [...new Set(opts.map(o => o.v))].map(c => ({ v: c })), onPick: t => { mode.v = t.v; T.render(); } });
+    return world.arm({ kind: "link", targets: opts.filter(o => o.v === mode.v), onPick: t => { const c = mode.v; mode = null; T.room.act({ type: "place", v: c, a: t.a, b: t.b }); } });
   }
   if (!mode) return world.arm(null);
   if (mode.kind === "build") {
     const w = mode.what, opts = E.legal(G, me, w);
     if (w === "trail") return world.arm({ kind: "link", targets: opts, onPick: t => { mode = null; T.room.act({ type: "build", kind: "trail", a: t.a, b: t.b }); } });
     if (w === "ship") return world.arm({ kind: "sea", targets: opts.map(o => ({ k: o.at })), onPick: t => { mode = null; T.room.act({ type: "build", kind: "ship", at: t.k }); } });
-    return world.arm({ kind: "tile", targets: opts.map(o => ({ k: o.tile })), onPick: t => { mode = null; T.room.act({ type: "build", kind: w, tile: t.k }); } });
+    return world.arm({ kind: "corner", targets: opts, onPick: t => { mode = null; T.room.act({ type: "build", kind: w, v: t.v }); } });
   }
   if (mode.kind === "sail") {
     const to = E.sailable(G, me, mode.ship);
@@ -118,7 +118,7 @@ function armBoard(v) {
     return world.arm({ kind: "sea", targets: to.map(k => ({ k })), onPick: t => T.room.act({ type: "sail", ship: mode.ship, to: t.k }) });
   }
   if (mode.kind === "play") {
-    if (mode.card === "seam") return world.arm({ kind: "tile", targets: [...new Set(v.builds.filter(b => b.pid === me).map(b => b.tile))].map(k => ({ k })), onPick: t => { mode = null; T.room.act({ type: "play", card: "seam", tile: t.k }); } });
+    if (mode.card === "seam") return world.arm({ kind: "tile", targets: [...new Set(v.builds.filter(b => b.pid === me).flatMap(b => E.vHexes(b.v)).filter(k => v.tiles[k]?.land && v.tiles[k].terrain !== "ruins"))].map(k => ({ k })), onPick: t => { mode = null; T.room.act({ type: "play", card: "seam", tile: t.k }); } });
     if (mode.card === "surveyor") {
       const marks = Object.keys(v.tiles).filter(k => v.tiles[k].land && v.tiles[k].mark && k !== mode.a).map(k => ({ k }));
       return world.arm({ kind: "tile", targets: marks, onPick: t => { if (!mode.a) { mode.a = t.k; T.render(); } else { const a = mode.a; mode = null; T.room.act({ type: "play", card: "surveyor", a, b: t.k }); } } });
@@ -168,8 +168,8 @@ function dock(v, ctx, me, mine) {
   const curName = esc(ctx.nameOf(v.cur));
   if (v.phase === "setup") {
     const round2 = v.setupStep >= v.players.length;
-    status = mine ? (mode?.tile ? "Now pick where your first trail runs" : `Place your ${round2 ? "second" : "first"} outpost — tap a glowing tile${round2 ? " (it pays 2 of its goods)" : ""}`) : `${curName} is choosing a spot…`;
-    if (mine && mode?.tile) btns = `<button class="btn ghost" data-act="unarm">Back</button>`;
+    status = mine ? (mode?.v ? "Now tap a glowing side for its trail" : `Place your ${round2 ? "second" : "first"} outpost — tap a glowing corner${round2 ? " (it pays 1 of each good it touches)" : ""}`) : `${curName} is choosing a spot…`;
+    if (mine && mode?.v) btns = `<button class="btn ghost" data-act="unarm">Back</button>`;
   } else if (v.phase === "roll") {
     status = mine ? "Your turn — roll the tides" : `${curName} is rolling…`;
     if (mine) btns = `<button class="btn big rollbtn" data-act="roll">🎲 Roll</button>`;
@@ -190,7 +190,7 @@ function dock(v, ctx, me, mine) {
     ${resbar(v)}${btns ? `<div class="actions">${btns}</div>` : ""}</div>`;
 }
 function armedText(v) {
-  if (mode.kind === "build") return { trail: "Tap a glowing marker to lay a trail", outpost: "Tap a glowing tile for your outpost", repair: "Tap a burned outpost to rebuild it", ship: "Tap a glowing hex of sea to launch" }[mode.what];
+  if (mode.kind === "build") return { trail: "Tap a glowing side to lay a trail", outpost: "Tap a glowing corner for your outpost", repair: "Tap a burned outpost to rebuild it", ship: "Tap a glowing hex of sea to launch" }[mode.what];
   if (mode.kind === "sail") { const used = v.sailed[mode.ship] || 0; return `Sail: tap a glowing hex (moves used ${used})`; }
   if (mode.kind === "play") return mode.card === "seam" ? "Tap a tile you're on to refill it" : mode.a ? "Now the second tile to swap with" : "Tap the first tile to swap";
   return "";
@@ -219,7 +219,7 @@ function overlay(ctx) {
   const v = ctx.V(); if (!sheet || !v || ctx.S.mode !== "game") return "";
   const me = myId(v), mineAct = isMine(v) && v.phase === "act";
   if (sheet === "beacon" && v.fleet) {
-    const F = v.fleet, by = v.beacon.by, exposed = v.builds.filter(b => !b.burned && E.sectorOf(b.tile) === F.sector);
+    const F = v.fleet, by = v.beacon.by, exposed = v.builds.filter(b => !b.burned && E.sectorOfV(b.v) === F.sector);
     const mine = exposed.filter(b => b.pid === me).length;
     return ctx.sheet("Cities & Knights", `<div class="sheetbody"><img class="sheetart" src="art/beacon.webp${V_ART}" alt="" onerror="this.remove()">
       <p style="margin-top:0">A raider fleet lands in <b>${F.eta} day${F.eta === 1 ? "" : "s"}</b> (end of round) on the <b>${["east", "south-east", "south-west", "west", "north-west", "north-east"][F.sector]}</b> coast, where <b>${exposed.length}</b> outpost${exposed.length === 1 ? " stands" : "s stand"}${mine ? ` — ${mine} of them yours` : ""}.</p>
@@ -231,7 +231,7 @@ function overlay(ctx) {
   if (!mineAct) { if (sheet !== "beacon") sheet = null; return ""; }
   if (sheet === "build") {
     const G = pseudoG(v), cnt = k => k === "trail" ? v.trails.filter(t => t.pid === me).length : k === "ship" ? v.ships.filter(s => s.pid === me).length : v.builds.filter(b => b.pid === me).length;
-    const items = [["trail", "Trail", "Links two tiles; reach new ground"], ["outpost", "Outpost", "+1 renown · harvests its tile when the tide is rolled"],
+    const items = [["trail", "Trail", "Runs along a tile's side; reach new corners"], ["outpost", "Outpost", "+1 renown · harvests every tile it touches"],
       ...(v.builds.some(b => b.pid === me && b.burned) ? [["repair", "Repair", "Rebuild a burned outpost"]] : []),
       ...(v.sea ? [["ship", "Ship", "Explore the fog, fish the shoals, reach isles"]] : []), ["charter", "Charter", `Draw a secret charter (${v.deck} left)`]];
     return ctx.sheet("Build", `<div class="sheetbody"><div class="blist">${items.map(([k, n, d]) => {
@@ -355,7 +355,7 @@ function effect(last, v, prev, ctx) {
   if (last.kind === "charter" && last.pid === me) ctx.toast(`You drew <b>${E.CHARTERS[last.card].name}</b>`);
   if (last.kind === "play") ctx.showFx(`<div class="omen"><img src="art/c-${last.card}.webp${V_ART}" alt="" onerror="this.remove()"><div><div class="t">${E.CHARTERS[last.card].name}</div><div class="l">${who(last.pid)} play${s(last.pid)} a charter${last.res ? ` · ${last.res}` : ""}</div></div></div>`, 1800);
   if (last.kind === "place" && last.begin) ctx.showFx(`<div class="t">The island is claimed</div><div class="l">${who(v.cur)} roll${s(v.cur)} first</div>`, 2000);
-  if (last.kind === "build" && last.tile) world.pulseTile(last.tile, 0xfff2c0);
+  if (last.kind === "build" && last.v) world.pulseTile(last.v, 0xfff2c0);
   if (last.bounced) ctx.toast(last.bounced === "isle" ? "Land ho! The ship anchors off the new isle" : "A reef! The ship backs off");
   if (last.over) setTimeout(() => world.home(), 600);
 }
