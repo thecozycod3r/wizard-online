@@ -1,58 +1,16 @@
-// Fuzz: every seat throws random actions (most illegal) mixed with bot moves. Checks after every step:
-// a refused action changes nothing, and the board never reaches an impossible state.
-import * as E from "../engine.js";
-const N = +(process.argv[2] || 300);
-const R = a => a[Math.floor(Math.random() * a.length)];
-const TYPES = ["place", "roll", "build", "buy", "sell", "contract", "charter", "play", "offer", "confirm", "cancel", "accept", "decline", "sail", "muster", "end", "nonsense", null];
-let refused = 0, applied = 0, games = 0;
-function randomAction(G, pid) {
-  const t = R(TYPES), tiles = Object.keys(G.tiles), corners = [...new Set(tiles.slice(0, 40).flatMap(E.cornersOf))], res = R([...E.GOODS, "silver", "gold", undefined]);
-  switch (t) {
-    case "place": { const v = R(corners), [a, b] = R(E.vSides(v)); return Math.random() < 0.5 ? { type: t, v, a, b } : { type: t, v: R([v, "x~y~z", 7, undefined]), a: R(tiles), b: R([b, undefined, 3]) }; }
-    case "build": { const k = R(["trail", "outpost", "ship", "repair", "hall", "tower"]), v = R(corners), [a, b] = R(E.vSides(v)); return { type: t, kind: k, v: R([v, "q~r~s", undefined]), a: R([a, R(tiles)]), b: R([b, R(tiles)]), at: R(tiles) }; }
-    case "buy": case "sell": case "muster": return { type: t, res };
-    case "contract": return { type: t, i: R([0, 1, 2, 3, -1]) };
-    case "play": return { type: t, card: R([...Object.keys(E.CHARTERS), "monument"]), res, tile: R(tiles), a: R(tiles), b: R(tiles) };
-    case "offer": return { type: t, give: { [R(E.GOODS)]: R([1, 2, -1, 0, 1.5]) }, want: { [R(E.GOODS)]: R([1, 2]) } };
-    case "confirm": return { type: t, with: R(G.players).id };
-    case "accept": case "decline": return { type: t, offer: G.offer ? (Math.random() < 0.7 ? G.offer.id : 999) : 1 };
-    case "sail": { const s = G.ships.length ? R(G.ships) : { id: 1, at: "0,0" }; return { type: t, ship: s.id, to: R(E.nbrs(s.at)) }; }
-    case null: return null;
-    default: return { type: t };
-  }
+import assert from 'node:assert/strict';
+import * as E from '../engine.js';
+const N=+(process.argv[2]||8);let refused=0,applied=0;
+for(let i=0;i<N;i++){
+ const n=3+i%4,G=E.newGame(Array.from({length:n},(_,i)=>({id:'p'+i,name:'P'+i})),{seed:370+i,sea:i%2===0,raiders:i%3!==0});
+ for(let step=0;step<10000&&G.phase!=='gameOver';step++){
+  const p=E.waitingOn(G)[0];
+  const candidates=[null,{type:'build',kind:'city',v:'0,0'},{type:'choose',value:'invalid'},{type:'bank',give:'wood',get:'wood'},{type:'offer',give:{wood:-1},want:{ore:1}},{type:'improve',track:'__proto__'},{type:'moveShip',id:-1},{type:'play',id:-1},{type:'place',a:0,b:null,v:'broken'},{type:'roll',dice:[6,6]},{type:'end'}];
+  const a=candidates[(step*17+i)%candidates.length],before=structuredClone(G);
+  try{E.act(G,step%7===0?'unseated':p,a);applied++;}catch{refused++;assert.deepEqual(G,before,'Refused action changed state');}
+  if(G.phase!=='gameOver'){const who=E.waitingOn(G)[0];E.act(G,who,E.botAction(G,who));applied++;}
+  for(const r of E.GOODS){const total=E.RES.includes(r)?n>4?24:19:G.raiders?n>4?18:12:0;assert.equal(G.bank[r]+G.players.reduce((s,p)=>s+G.hands[p.id][r],0),total);}
+ }
+ assert.equal(G.phase,'gameOver');
 }
-function check(G) {
-  const fail = m => { throw new Error(m + " @turn " + G.turnNo); };
-  for (const p of G.players) for (const [r, v] of Object.entries(G.hands[p.id])) if (!Number.isInteger(v) || v < 0) fail(`hand ${r}=${v}`);
-  const at = new Set(G.builds.map(b => b.v));
-  if (at.size !== G.builds.length) fail("two outposts on one corner");
-  for (const b of G.builds) {
-    if (!E.vHexes(b.v).some(k => G.tiles[k]?.land)) fail("building off land");
-    if (E.vNbrs(b.v).some(u => at.has(u))) fail("outposts on neighbouring corners");
-  }
-  for (const k in G.tiles) { const t = G.tiles[k]; if (t.land && (t.rich < 0 || t.rich > E.RICH)) fail("rich"); }
-  const tk = new Set(); for (const t of G.trails) { if (tk.has(t.k)) fail("dup trail"); tk.add(t.k); if (!E.nbrs(t.a).includes(t.b)) fail("trail not a side"); if (!G.tiles[t.a]?.land && !G.tiles[t.b]?.land) fail("trail off land"); }
-  const sk = new Set(); for (const s of G.ships) { const t = G.tiles[s.at]; if (!t || t.land || t.sea === "reef") fail("ship on " + (t?.sea || "nothing")); if (sk.has(s.at)) fail("two ships one hex"); sk.add(s.at); }
-  for (const r of E.GOODS) if (G.prices[r] < 1 || G.prices[r] > 6) fail("price");
-  if (G.phase !== "setup" && G.contracts.length !== 3) fail("contracts " + G.contracts.length);
-  for (const p of G.players) { if (G.builds.filter(b => b.pid === p.id).length > E.LIMIT.outpost) fail("outpost limit"); if (G.trails.filter(t => t.pid === p.id).length > E.LIMIT.trail) fail("trail limit"); }
-  if (G.phase === "gameOver" && !G.result) fail("no result");
-}
-for (let g = 0; g < N; g++) {
-  const n = 2 + (g % 5);
-  const G = E.newGame(Array.from({ length: n }, (_, i) => ({ id: "p" + i, name: "P" + i })), { sea: g % 2 === 0, raiders: g % 3 !== 0, seed: 900 + g });
-  let steps = 0;
-  while (G.phase !== "gameOver" && steps++ < 30000) {
-    const pid = Math.random() < 0.85 ? E.waitingOn(G)[0] : R(G.players).id;
-    const a = Math.random() < 0.5 ? randomAction(G, pid) : (E.waitingOn(G)[0] === pid ? E.botAction(G, pid) : randomAction(G, pid));
-    const before = JSON.stringify(G);
-    try { E.act(G, pid, a); applied++; }
-    catch (e) { refused++; if (JSON.stringify(G) !== before) throw new Error(`refused ${JSON.stringify(a)} but state changed: ${e.message}`); }
-    check(G);
-    // keep games moving: the current seat sometimes falls back to its bot
-    if (Math.random() < 0.3 && G.phase !== "gameOver") { const c = E.waitingOn(G)[0]; try { E.act(G, c, E.botAction(G, c)); } catch { /* fine */ } check(G); }
-  }
-  if (G.phase !== "gameOver") throw new Error("fuzz game never ended, players " + n);
-  games++;
-}
-console.log({ games, applied, refused });
+console.log({games:N,refused,applied});

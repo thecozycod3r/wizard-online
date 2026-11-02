@@ -38,3 +38,15 @@ The Resistance: Avalon, 5–10 players. Pure engine `avalon/engine.js`; screens 
 Incan Gold (Moon & Faidutti), 3–8 players. Engine `incan/engine.js`; screens `incan/app.js`; drawn art `incan/art.js`. Between temples the table runner moves on by itself (`E.pause` → room `timers`).
 - `node incan/test/sim.mjs` — 4,000 games at 3–8 players + rule checks (splits and leftovers, lone-leaver artifacts, 5/10 artifact values, double hazards, removed hazards, lost/undrawn artifacts, private tents).
 - `python3 incan/test/e2e.py <url> <N>` · `python3 incan/test/failover.py [url]` · shared suites take `incan` (no sideways rows, so no swipe test).
+
+## Catan (`catan/`)
+
+CATAN base rules with optional Seafarers (Heading for New Shores) and Cities & Knights. Supports 3–6 players, including the sixth-edition paired-turn extension. New games use v4 state; custom-rule v3 saves are preserved separately.
+
+- `node --test catan/test/rules.mjs` — focused rule and privacy regressions.
+- `node catan/test/placement.mjs` — intersection/edge geometry and setup placement.
+- `node catan/test/sim.mjs 2` — 32 complete games covering all player counts and module combinations.
+- `node catan/test/fuzz.mjs 8` — invalid actions must leave state unchanged.
+- `node catan/test/browser.mjs http://127.0.0.1:8766/catan/` — desktop/phone board clicks and controls (requires a local server and Playwright).
+
+See `catan/RULES-AUDIT.md` for supported scope and official rulebook references.

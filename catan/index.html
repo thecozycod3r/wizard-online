@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#0d2230">
 <title>Catan · Table Night</title>
-<meta name="description" content="Catan: settle a 3D island with friends on your phones. Harvest, trade, deliver contracts, sail into the fog and hold the coast against raiders. 2–6 players.">
+<meta name="description" content="Catan: settle a 3D island with friends on your phones. Official base rules with Seafarers and Cities & Knights. Trade, build cities and defend Catan. 3–6 players.">
 <meta property="og:title" content="Catan — join my island">
 <meta property="og:description" content="Tap the link, enter your name, and settle the island.">
 <meta property="og:image" content="icon-512.png">
@@ -120,11 +120,15 @@ body[data-mode="landing"] .page,body[data-mode="join"] .page,body[data-mode="lob
   .contracts{position:fixed;left:8px;bottom:8px;width:min(420px,48vw);margin:0}
   .spacer{display:none}.cam{top:auto;bottom:120px;left:10px;right:auto}
 }
+
+.dd b:first-child{background:#a73535;color:#fff}.resource-name{font-size:10px}.commodity{display:inline-flex;width:22px;height:22px;align-items:center;justify-content:center;background:#e5d4a9;color:#3b362c;border-radius:4px;font-size:22px}
+.choice-buttons{display:flex;flex-wrap:wrap;gap:6px;max-height:180px;overflow:auto;width:100%}.actions{flex-wrap:wrap}.bank-stock{display:flex;gap:14px;flex-wrap:wrap;margin-top:18px}.sheetbody label{display:flex;gap:12px;align-items:center;margin:12px 0}.sheetbody select{padding:10px;border-radius:8px;background:#173449;color:var(--ink);border:1px solid var(--line);min-width:180px}.knight-row{border-top:1px solid var(--line);padding:12px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.bc{flex-wrap:wrap}.bc span{font-size:12px}.bitem .bd{white-space:normal}.res{gap:4px}.tgrid .step .btn{padding:4px 9px;min-height:32px}
+@media(max-width:600px){.resource-name{display:none}.resbar{gap:8px}.actions>.btn{font-size:12px;padding:7px 10px}.choice-buttons{max-height:150px}.dock .status{font-size:13px}}
 </style>
 </head>
 <body>
 <canvas id="world" aria-label="The island, in 3D"></canvas>
 <div id="app"></div>
-<script type="module" src="app.js?v=1"></script>
+<script type="module" src="app.js?v=4"></script>
 </body>
 </html>

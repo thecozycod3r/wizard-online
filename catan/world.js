@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/OrbitControls.js";
 import { Sky } from "three/addons/Sky.js";
 import { mergeGeometries } from "three/addons/BufferGeometryUtils.js";
-import { DIRS, key, unkey, ring, nbrs, sectorOf, TERRAIN, vXY, sideEnds } from "./engine.js";
+import { DIRS, key, unkey, ring, nbrs, sectorOf, TERRAIN, vXY, sideEnds, cornersOf } from "./engine.js";
 
 const S3 = Math.sqrt(3);
 export const hexXZ = k => { const [q, r] = typeof k === "string" ? unkey(k) : k; return [S3 * (q + r / 2), 1.5 * r]; };
@@ -166,7 +166,7 @@ export function createWorld(canvas, opts = {}) {
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);
   camera.position.set(0, 13, 13);
   const controls = new OrbitControls(camera, canvas);
-  Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, minDistance: 5, maxDistance: 30, minPolarAngle: 0.25, maxPolarAngle: 1.2, enablePan: true, panSpeed: 0.6, rotateSpeed: 0.6 });
+  Object.assign(controls, { enableDamping: true, dampingFactor: 0.08, minDistance: 5, maxDistance: 48, minPolarAngle: 0.25, maxPolarAngle: 1.2, enablePan: true, panSpeed: 0.6, rotateSpeed: 0.6 });
   controls.target.set(0, 0, 0.6);
   let idle = true, lastTouch = 0;
   controls.addEventListener("start", () => { idle = false; lastTouch = performance.now(); camTween = null; });
@@ -264,16 +264,30 @@ export function createWorld(canvas, opts = {}) {
   board.add(tilesG, decoG, piecesG, seaG, fxG, hiG);
   const cliffMat = seasonal(new THREE.MeshStandardMaterial({ map: tex("tex-cliff", 1), roughness: 0.95 }), { snowy: false });
   const tileMats = {}, tileObjs = {};
-  const terrTex = { pine: "tex-pine", quarry: "tex-quarry", flax: "tex-flax", barley: "tex-barley", copper: "tex-copper", ruins: "tex-ruins" };
+  const terrTex = { pine: "tex-pine", quarry: "tex-copper", flax: "tex-flax", barley: "tex-barley", copper: "tex-quarry", ruins: "tex-ruins", gold: "tex-quarry" };
+  // Use the rules engine's actual corners so visible borders, roads and buildings agree.
+  const edgeMat = new THREE.MeshStandardMaterial({ color: 0x756044, roughness: 1 });
+  const edgeGeo = new THREE.BoxGeometry(1, 0.012, 0.018);
   function makeTile(k, t) {
     const [x, z] = hexXZ(k), g = new THREE.Group(); g.position.set(x, 0, z);
     const mat = seasonal(new THREE.MeshStandardMaterial({ map: tex(terrTex[t.terrain], 1.4), roughness: 0.92 }));
+    if (t.terrain === "gold") mat.color.set(0xf2bd49);
     const top = new THREE.Mesh(hexTopGeometry(t, quality === "high" ? 10 : 7), mat); top.receiveShadow = true; top.castShadow = true;
     const skirt = new THREE.Mesh(hexSkirt(TOP + 0.02, -0.7), cliffMat); skirt.receiveShadow = true;
     // a beach lip so the coast reads as land meeting water
     const lip = new THREE.Mesh(new THREE.CylinderGeometry(1.03, 1.1, 0.06, 6, 1), new THREE.MeshStandardMaterial({ map: tex("tex-sand", 2), roughness: 1 }));
     lip.rotation.y = Math.PI / 6 + Math.PI / 2; lip.position.y = 0.02;
     g.add(top, skirt, lip); g.userData = { k, top, mat };
+    const corners = cornersOf(k).map(vXY);
+    const border = new THREE.Group(); border.name = "hex-border";
+    for (let i = 0; i < corners.length; i++) {
+      const [ax, az] = corners[i], [bx, bz] = corners[(i + 1) % corners.length];
+      const edge = new THREE.Mesh(edgeGeo, edgeMat);
+      edge.position.set((ax + bx) / 2 - x, TOP + 0.025, (az + bz) / 2 - z);
+      edge.rotation.y = -Math.atan2(bz - az, bx - ax);
+      border.add(edge);
+    }
+    g.add(border);
     if (t.mark) {
       // a wooden disc with the number painted on a flat decal on top (cylinder caps mirror canvas text)
       const y = tileHeight(t, 0, 0) + 0.03, tok = new THREE.Group();
@@ -518,6 +532,7 @@ export function createWorld(canvas, opts = {}) {
   // ------------------------------------------------ sync with the game view
   let view = null;
   const buildObjs = {}, trailObjs = {}, shipObjs = {};
+  const officialG = new THREE.Group(); piecesG.add(officialG);
   let season = -1, landSig = "";
   function sync(v, { instant = false } = {}) {
     const prevV = view; view = v;
@@ -545,23 +560,31 @@ export function createWorld(canvas, opts = {}) {
       const id = `${b.pid}@${b.v}`; seen.add(id);
       const [cx, cz] = vXY(b.v);
       let o = buildObjs[id];
-      if (o && !!o.userData.burned !== !!b.burned) { piecesG.remove(o); o = null; delete buildObjs[id]; }
+      if (o && o.userData.signature !== `${b.kind}:${b.wall}:${b.metro}`) { piecesG.remove(o); o = null; delete buildObjs[id]; }
       if (!o) {
-        o = house(b.pid, false, b.burned); o.userData.burned = !!b.burned; o.userData.pid = b.pid;
+        o = house(b.pid, b.kind === "city"); o.userData.pid = b.pid; o.userData.vertex = b.v;
+        o.userData.signature = `${b.kind}:${b.wall}:${b.metro}`;
+        if (b.wall) { const wall = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.055, 0.43), stoneMat); wall.position.y = 0.015; o.add(wall); }
+        if (b.metro) { const crown = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.16, 5), new THREE.MeshStandardMaterial({color:0xffd34d,metalness:0.4,roughness:0.4})); crown.position.y = 0.34; o.add(crown); }
         o.position.set(cx, TOP, cz); o.rotation.y = Math.atan2(cx, cz) + Math.PI; o.scale.setScalar(1.7); o.userData.s = 1.7;   // door faces the island's middle
         piecesG.add(o); buildObjs[id] = o; if (!instant && prevV && !b.burned) drop(o);
       }
     }
     for (const id of Object.keys(buildObjs)) if (!seen.has(id)) { piecesG.remove(buildObjs[id]); delete buildObjs[id]; }
-    syncFleet(v, instant || !prevV);
+    syncOfficialPieces(v);
     // trails
     for (const t of v.trails) if (!trailObjs[t.k]) { const m = trailMesh(t.a, t.b, t.pid); piecesG.add(m); trailObjs[t.k] = m; if (!instant && prevV) layTrail(m); }
-    // ships
+    for (const k of Object.keys(trailObjs)) if (!v.trails.some(t => t.k === k)) { piecesG.remove(trailObjs[k]); delete trailObjs[k]; }
+    // Ships share the same edge geometry as roads.
     for (const s of v.ships) {
       let o = shipObjs[s.id];
-      const [x, z] = hexXZ(s.at);
+      const [a, b] = sideEnds(s.a, s.b).map(vXY), x = (a[0] + b[0]) / 2, z = (a[1] + b[1]) / 2;
       if (!o) { o = ship(s.pid); o.scale.setScalar(1.6); o.userData.s = 1.6; o.userData.shipId = s.id; o.position.set(x, 0, z); o.userData.to = new THREE.Vector3(x, 0, z); scene.add(o); shipObjs[s.id] = o; if (!instant && prevV) drop(o, 0.6); }
       else o.userData.to.set(x, 0, z);
+      o.position.set(x, v.tiles[s.a]?.land || v.tiles[s.b]?.land ? TOP + 0.02 : 0.04, z);
+      o.userData.coastal = !!(v.tiles[s.a]?.land || v.tiles[s.b]?.land);
+      o.userData.heading = -Math.atan2(b[1] - a[1], b[0] - a[0]); o.rotation.y = o.userData.heading;
+      o.userData.edge = s.k;
     }
     for (const id of Object.keys(shipObjs)) if (!v.ships.some(s => String(s.id) === id)) { scene.remove(shipObjs[id]); delete shipObjs[id]; }
     // season look
@@ -572,6 +595,42 @@ export function createWorld(canvas, opts = {}) {
     if (prevV && prevV.round !== v.round && !instant) nightPass(); else dayTarget = f;
     if (!prevV || instant) day = dayTarget;
   }
+  const portTextures = {};
+  const seaBorderGeometry = new THREE.BufferGeometry().setFromPoints(cornersOf('0,0').map(vXY).map(([x,z])=>new THREE.Vector3(x,0.12,z)));
+  const seaBorderMaterial = new THREE.LineBasicMaterial({color:0xa1d8db,transparent:true,opacity:0.25});
+  let officialSignature = '';
+  function syncOfficialPieces(v) {
+    const signature=JSON.stringify([v.knights,v.robber,v.pirate,v.merchant,v.ports,Object.keys(v.tiles)]);
+    if(signature===officialSignature)return;
+    officialSignature=signature;officialG.clear();
+    for(const k in v.tiles)if(!v.tiles[k].land){
+      const [x,z]=hexXZ(k),outline=new THREE.LineLoop(seaBorderGeometry,seaBorderMaterial);
+      outline.position.set(x,0,z);outline.name='sea-hex-border';officialG.add(outline);
+    }
+    for (const k of v.knights || []) {
+      const g = new THREE.Group(), [x,z] = vXY(k.v);
+      const mat = roofMat(k.pid);
+      for(let i=0;i<k.level;i++){const ring=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.055,12),mat);ring.position.y=0.035+i*0.06;g.add(ring);}
+      const head=new THREE.Mesh(new THREE.SphereGeometry(0.085,12,10),mat);head.position.y=0.14+k.level*0.06;g.add(head);
+      const spear=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,0.42,5),stoneMat);spear.position.set(0.11,0.21,0);g.add(spear);
+      if(k.active){const flag=new THREE.Mesh(new THREE.PlaneGeometry(0.16,0.1),new THREE.MeshBasicMaterial({color:0xffe28b,side:THREE.DoubleSide}));flag.position.set(0.18,0.37,0);g.add(flag);}
+      g.position.set(x,onLandCorner(v,k.v)?TOP:0.09,z);g.userData.knightId=k.id;g.userData.vertex=k.v;officialG.add(g);
+    }
+    for(const type of ['robber','pirate','merchant']){
+      const at=type==='merchant'?v.merchant?.at:v[type];if(!at)continue;
+      const [x,z]=hexXZ(at);let g;
+      if(type==='pirate'){g=ship(null,true);g.scale.setScalar(1.6);g.position.set(x,0.04,z);}
+      else{g=new THREE.Group();const mat=new THREE.MeshStandardMaterial({color:type==='robber'?0x30343b:0x9c4cbd,roughness:0.6});const body=new THREE.Mesh(new THREE.ConeGeometry(0.13,0.35,12),mat);body.position.y=0.175;const head=new THREE.Mesh(new THREE.SphereGeometry(0.09,12,10),mat);head.position.y=0.4;g.add(body,head);g.position.set(x+0.3,TOP,z);}
+      g.name=type;officialG.add(g);
+    }
+    for(const port of v.ports||[]){
+      const [a,b]=port.ends.map(vXY), x=(a[0]+b[0])/2,z=(a[1]+b[1])/2, [cx,cz]=hexXZ(port.a);
+      const label=port.res==='any'?'3:1':`2:1 ${port.res}`;
+      const map=portTextures[label] ||= canvasTex(256,96,(c,w,h)=>{c.fillStyle='#e8dab9';c.fillRect(0,0,w,h);c.fillStyle='#312a20';c.font='bold 34px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,w/2,h/2);});
+      const sign=new THREE.Mesh(new THREE.PlaneGeometry(0.75,0.28),new THREE.MeshBasicMaterial({map,side:THREE.DoubleSide}));sign.rotation.x=-Math.PI/2;sign.position.set(x+(x-cx)*0.32,TOP+0.07,z+(z-cz)*0.32);sign.name='port';officialG.add(sign);
+    }
+  }
+  function onLandCorner(v,k){return k.split('~').some(h=>v.tiles[h]?.land);}
   // ------------------------------------------------ animations
   const tweens = [];
   const ease = x => 1 - Math.pow(1 - x, 3), back = x => 1 + 2.4 * Math.pow(x - 1, 3) + 1.4 * Math.pow(x - 1, 2);
@@ -610,7 +669,10 @@ export function createWorld(canvas, opts = {}) {
   }
   function home(ms = 1400) {
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight, base = view && view.R > 2 ? 17 : 14.5;
-    camTo(new THREE.Vector3(0, 0, 0.6), base * Math.max(1, (h / w) * 0.62), ms);
+    const pts = view ? Object.keys(view.tiles).map(hexXZ) : [[0,0]];
+    const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+    camTo(new THREE.Vector3(cx, 0, cz), base * Math.max(1, (h / w) * 0.72), ms);
   }
   // raid: longships come in from the horizon on the sector's bearing, fire arrows, then withdraw or burn
   function raid(R) {
@@ -708,7 +770,7 @@ export function createWorld(canvas, opts = {}) {
       const to = s.userData.to, d = to.clone().sub(s.position).setY(0);
       if (d.length() > 0.01) { const step = Math.min(d.length(), dt * 1.4); s.position.addScaledVector(d.normalize(), step); s.userData.heading = Math.atan2(-d.z, d.x); }
       const w = wave(s.position.x, s.position.z, T);
-      s.position.y = w.y + 0.02; const b = s.userData.body; b.rotation.set(-w.nz * 0.25, 0, w.nx * 0.25); s.rotation.y += (((s.userData.heading ?? 0) - s.rotation.y + Math.PI) % (Math.PI * 2) - Math.PI) * dt * 2;
+      s.position.y = s.userData.coastal ? TOP + 0.02 : w.y + 0.02; const b = s.userData.body; b.rotation.set(-w.nz * 0.25, 0, w.nx * 0.25); s.rotation.y += (((s.userData.heading ?? 0) - s.rotation.y + Math.PI) % (Math.PI * 2) - Math.PI) * dt * 2;
       s.userData.sail.scale.z = 1 + Math.sin(T * 2 + s.position.x) * 0.15;
     }
     for (const g of Object.values(seaObjs)) { if (g.userData.float) g.userData.float.position.y = 0.16 + wave(g.position.x, g.position.z, T).y; }
@@ -767,6 +829,7 @@ export function createWorld(canvas, opts = {}) {
     for (const g of [tilesG, decoG, piecesG, seaG, fxG, hiG]) g.clear();
     for (const o of Object.values(shipObjs)) scene.remove(o);
     for (const m of [tileObjs, tileMats, fogObjs, seaObjs, buildObjs, trailObjs, shipObjs]) for (const k of Object.keys(m)) delete m[k];
+    officialG.clear(); officialSignature = ""; piecesG.add(officialG);
     landSig = ""; view = null; season = -1; armed = null; parts.length = 0;
   }
 

@@ -13,7 +13,7 @@ export const GAMES = [
   { path: "coup", letter: "U", name: "Coup", min: 2, max: 10, mins: 15, tags: ["cards", "party", "bluff", "quick"] },
   { path: "bluff", letter: "B", name: "Bluff", min: 3, max: 8, mins: 20, tags: ["cards", "party", "bluff"] },
   { path: "spyfall", letter: "Y", name: "Spyfall", min: 3, max: 10, mins: 15, tags: ["party", "roles", "bluff", "quick"] },
-  { path: "catan", letter: "T", name: "Catan", min: 2, max: 6, mins: 60, tags: ["strategy"] },
+  { path: "catan", letter: "C", name: "Catan", min: 3, max: 6, mins: 60, tags: ["strategy"] },
   { path: "codenames", letter: "D", name: "Codenames", min: 4, max: 12, mins: 20, tags: ["party", "words", "teams"] },
   { path: "kingscup", letter: "C", name: "Kings Cup", min: 3, max: 12, mins: 30, tags: ["drinking", "party"] },
   { path: "ridebus", letter: "R", name: "Ride the Bus", min: 2, max: 10, mins: 20, tags: ["drinking", "party", "quick"] },
